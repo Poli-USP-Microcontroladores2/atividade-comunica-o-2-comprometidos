@@ -7,8 +7,8 @@ Atividade: Comunicação UART
 
 * Dupla:
 
-  * Integrante 1:
-  * Integrante 2:
+  * Integrante 1: Filipe Cassoli
+  * Integrante 2: Henrique Santiago
 
 * Objetivo: implementar, testar e documentar aplicações de comunicação UART baseadas nos exemplos oficiais “echo_bot” e “async_api”, utilizando desenvolvimento orientado a testes, diagramas de sequência D2 e registro de evidências.
 
