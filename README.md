@@ -72,19 +72,96 @@ Echo: Hi there!
 O usuário digita uma mensagem (ex.: *Hi there!*), pressiona *Enter*, e o bot responde com a mesma mensagem antecedida por *"Echo:"*.
 
 
-## 3.2 Casos de Teste Planejados (TDD)
+### **3.2 Casos de Teste Planejados (TDD)**
 
-### CT1 – Eco básico
+#### **CT1 – Eco básico**
 
-* Entrada:
-* Saída esperada:
-* Critério de Aceitação:
+| Item                       | Descrição                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário digita `Hello` e pressiona *Enter*.                                                  |
+| **Saída esperada:**        | `Echo: Hello`                                                                                |
+| **Critério de Aceitação:** | O texto ecoado deve ser idêntico ao digitado, com o prefixo “Echo: ”, e apenas após *Enter*. |
 
-### CT2 – Linha vazia
+---
 
-### CT3 – Linha longa
+#### **CT2 – Linha vazia**
 
-(Adicionar mais casos se necessário.)
+| Item                       | Descrição                                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário pressiona *Enter* sem digitar nenhum caractere.                                                                                                 |
+| **Saída esperada:**        | `Echo:` *(linha vazia após o prefixo)*                                                                                                                  |
+| **Critério de Aceitação:** | O sistema não deve travar nem gerar erro ao receber uma linha vazia. A linha vazia deve ser ecoada (ou comportamento conforme requisito, se diferente). |
+
+---
+
+#### **CT3 – Linha longa**
+
+| Item                       | Descrição                                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Usuário digita uma linha com o tamanho máximo suportado pelo buffer (ex.: 128 caracteres) e pressiona *Enter*.                                                     |
+| **Saída esperada:**        | A linha completa deve ser ecoada com o prefixo `Echo:` sem truncamento ou corrupção.                                                                               |
+| **Critério de Aceitação:** | O sistema deve ecoar todos os caracteres dentro do limite. Se excedido, deve adotar o comportamento definido (ex.: truncar, descartar excedente). Não pode travar. |
+
+---
+
+#### **CT4 – Caracteres especiais**
+
+| Item                       | Descrição                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário digita: `!@#$%&*()_+-=[]{};:'",.<>/?\|` e pressiona *Enter*.                                                      |
+| **Saída esperada:**        | `Echo: !@#$%&*()_+-=[]{};:'",.<>/?\|`                                                                                     |
+| **Critério de Aceitação:** | Todos os caracteres especiais devem ser recebidos e ecoados de forma idêntica, sem alterações, remoções ou substituições. |
+
+---
+
+#### **CT5 – Caracteres não ASCII (UTF-8)**
+
+| Item                       | Descrição                                                                                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário digita: `Olá, você está bem? äöüñç` e pressiona *Enter*.                                                                                                            |
+| **Saída esperada:**        | `Echo: Olá, você está bem? äöüñç`                                                                                                                                           |
+| **Critério de Aceitação:** | O sistema deve manter a integridade dos caracteres acentuados ou multibyte. Se o driver não suportar UTF-8, o comportamento esperado deve ser documentado. Não deve travar. |
+
+---
+
+#### **CT6 – Múltiplas linhas seguidas**
+
+| Item                       | Descrição                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário envia 5 linhas seguidas, ex.: `A` + Enter, `B` + Enter, `C` + Enter...                                                     |
+| **Saída esperada:**        | O sistema deve ecoar cada linha imediatamente após cada *Enter* (`Echo: A`, `Echo: B`, etc.).                                      |
+| **Critério de Aceitação:** | O sistema deve processar e ecoar cada linha com sucesso, sem perder mensagens e sem necessidade de reinicialização entre entradas. |
+
+---
+
+#### **CT7 – Alta taxa de entrada de caracteres**
+
+| Item                       | Descrição                                                                                                                                                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | O usuário ou script envia caracteres rapidamente, com pouco intervalo entre eles.                                                                                                             |
+| **Saída esperada:**        | Todas as entradas devem ser corretamente recebidas e ecoadas assim que cada *Enter* for recebido.                                                                                             |
+| **Critério de Aceitação:** | O sistema não pode perder caracteres devido ao recebimento por interrupção. Caso o buffer fique cheio, o comportamento deve seguir o especificado (ex.: aviso, truncamento). Não pode travar. |
+
+---
+
+#### **CT8 – Reset durante digitação**
+
+| Item                       | Descrição                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Usuário digita parte de uma frase, sem pressionar *Enter*, e o dispositivo é reiniciado.                                         |
+| **Saída esperada:**        | Após reiniciar, o sistema deve exibir novamente a mensagem inicial de boas-vindas. O texto parcial anterior não deve ser ecoado. |
+| **Critério de Aceitação:** | O buffer deve ser reinicializado após reset e o bot deve retornar ao estado inicial sem comportamento inesperado.                |
+
+---
+
+#### **CT9 – Erro de UART / ruído na linha**
+
+| Item                       | Descrição                                                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | São inseridos erros simulados na transmissão (ex.: byte inválido, paridade incorreta, ou ruídos na linha).                                         |
+| **Saída esperada:**        | O sistema deve manter estabilidade. Pode ignorar caracteres inválidos, substituí-los por placeholder ou tratá-los conforme configuração do driver. |
+| **Critério de Aceitação:** | O sistema não deve travar nem reiniciar devido a erros de UART. Deve lidar com erros da forma definida e continuar operacional.                    |
+
 
 ## 3.3 Implementação
 
