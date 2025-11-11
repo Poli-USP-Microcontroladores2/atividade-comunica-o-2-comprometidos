@@ -36,6 +36,42 @@ Descrever aqui de forma textual o comportamento esperado baseado no exemplo ofic
 Link usado como referência:
 [https://docs.zephyrproject.org/latest/samples/drivers/uart/echo_bot/README.html](https://docs.zephyrproject.org/latest/samples/drivers/uart/echo_bot/README.html)
 
+## **Descrição do Comportamento Esperado – UART Echo Bot**
+
+O *UART Echo Bot* é um exemplo simples que demonstra o uso do driver UART para comunicação serial. O programa atua como um “bot” que recebe dados digitados pelo usuário via console UART e devolve exatamente o mesmo conteúdo após o usuário pressionar a tecla *Enter*.
+
+### **Funcionamento Geral**
+
+1. Ao iniciar, o sistema exibe uma mensagem de boas-vindas via UART, orientando o usuário a digitar algum texto.
+2. O usuário digita uma sequência de caracteres no console UART.
+3. O programa armazena os caracteres recebidos.
+
+   * A recepção é feita por meio de **interrupções** (interrupt-driven), permitindo que a thread principal continue disponível para outras tarefas enquanto aguarda novos dados.
+4. Quando o usuário pressiona *Enter* (fim da linha), o sistema envia de volta a linha recebida.
+
+   * O envio é realizado usando a **API de polling**, ou seja, os caracteres são transmitidos de forma síncrona até concluir o envio.
+5. Após o eco da mensagem, o sistema volta a aguardar novos dados, repetindo o ciclo.
+
+### **Principais Características da Implementação**
+
+* **Recepção por interrupção**: evita bloqueio da thread enquanto aguarda dados, permitindo potencial processamento paralelo.
+* **Transmissão por polling**: simples e direta para enviar dados de volta ao usuário.
+* **Compatível com a maioria das placas**: utiliza a UART padrão normalmente usada pelo *Zephyr shell*.
+* **Comportamento contínuo**: o bot permanece ativo, ecoando cada nova entrada enviada pelo usuário após *Enter*.
+
+### **Exemplo de Interação Esperada**
+
+```
+Hello! I'm your echo bot.
+Tell me something and press enter:
+Type e.g. "Hi there!" and hit enter!
+
+Echo: Hi there!
+```
+
+O usuário digita uma mensagem (ex.: *Hi there!*), pressiona *Enter*, e o bot responde com a mesma mensagem antecedida por *"Echo:"*.
+
+
 ## 3.2 Casos de Teste Planejados (TDD)
 
 ### CT1 – Eco básico
