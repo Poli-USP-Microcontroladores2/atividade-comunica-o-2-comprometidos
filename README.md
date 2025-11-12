@@ -40,36 +40,166 @@ Link usado como referência:
 
 O *UART Echo Bot* é um exemplo simples que demonstra o uso do driver UART para comunicação serial. O programa atua como um “bot” que recebe dados digitados pelo usuário via console UART e devolve exatamente o mesmo conteúdo após o usuário pressionar a tecla *Enter*.
 
-### **Funcionamento Geral**
+---
 
-1. Ao iniciar, o sistema exibe uma mensagem de boas-vindas via UART, orientando o usuário a digitar algum texto.
-2. O usuário digita uma sequência de caracteres no console UART.
-3. O programa armazena os caracteres recebidos.
+## 🧭 **Visão Geral do Comportamento**
 
-   * A recepção é feita por meio de **interrupções** (interrupt-driven), permitindo que a thread principal continue disponível para outras tarefas enquanto aguarda novos dados.
-4. Quando o usuário pressiona *Enter* (fim da linha), o sistema envia de volta a linha recebida.
+O programa inicializa a UART padrão do Zephyr (geralmente a mesma usada pelo console/shell) e passa a funcionar como um **bot de eco via serial**.
+Ele aguarda o usuário digitar uma linha de texto (finalizada com *Enter*), e então envia de volta a mesma linha, precedida da palavra **“Echo:”**.
 
-   * O envio é realizado usando a **API de polling**, ou seja, os caracteres são transmitidos de forma síncrona até concluir o envio.
-5. Após o eco da mensagem, o sistema volta a aguardar novos dados, repetindo o ciclo.
+Durante o funcionamento:
 
-### **Principais Características da Implementação**
+* A **recepção** dos caracteres ocorre **de forma assíncrona**, via **interrupções**.
+* O **envio** da resposta é feito **por polling** (síncrono), caractere a caractere.
+* O programa fica rodando indefinidamente, repetindo o ciclo de leitura → eco → espera por nova entrada.
 
-* **Recepção por interrupção**: evita bloqueio da thread enquanto aguarda dados, permitindo potencial processamento paralelo.
-* **Transmissão por polling**: simples e direta para enviar dados de volta ao usuário.
-* **Compatível com a maioria das placas**: utiliza a UART padrão normalmente usada pelo *Zephyr shell*.
-* **Comportamento contínuo**: o bot permanece ativo, ecoando cada nova entrada enviada pelo usuário após *Enter*.
+---
 
-### **Exemplo de Interação Esperada**
+## ⚙️ **Fluxo de Execução Esperado**
+
+### **1️⃣ Inicialização**
+
+1. O código obtém o *device handle* da UART configurada como `zephyr_shell_uart` no *Device Tree*.
+2. Ele verifica se o dispositivo está pronto com `device_is_ready()`.
+
+   * Se não estiver, exibe a mensagem de erro:
+
+     ```
+     UART device not found!
+     ```
+3. Configura a UART para operação **interrompida**, registrando a função `serial_cb` como *callback* para tratar os dados recebidos.
+4. Habilita a recepção por interrupção (`uart_irq_rx_enable()`).
+5. Envia duas mensagens de boas-vindas pela UART:
+
+   ```
+   Hello! I'm your echo bot.
+   Tell me something and press enter:
+   ```
+
+---
+
+### **2️⃣ Recepção de dados (Interrupção via `serial_cb`)**
+
+A função `serial_cb()` é chamada automaticamente sempre que a UART recebe dados.
+
+Comportamento detalhado:
+
+* Lê cada caractere recebido via `uart_fifo_read()`.
+* Armazena os caracteres no buffer `rx_buf[]`.
+* Quando detecta um *fim de linha* (`\n` ou `\r`), considera que a mensagem terminou:
+
+  * Adiciona um terminador nulo (`\0`) ao final da string.
+  * Copia a linha completa para a **fila de mensagens (`k_msgq`)**.
+  * Zera o índice do buffer (`rx_buf_pos = 0`) para começar a próxima linha.
+* Se o buffer encher antes do *Enter*, os caracteres excedentes são descartados.
+* Se a fila estiver cheia (10 mensagens pendentes), novas mensagens são descartadas silenciosamente.
+
+---
+
+### **3️⃣ Fila de mensagens (`k_msgq`)**
+
+A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt callback* e a *thread principal* (`main()`).
+
+* Capacidade: **10 mensagens**
+* Tamanho de cada mensagem: **32 bytes**
+* Alinhamento: **4 bytes**
+
+Ela permite que a função principal espere por mensagens novas **sem bloquear o recebimento de interrupções**.
+
+---
+
+### **4️⃣ Loop principal (`main`)**
+
+A função `main()` entra em um loop infinito:
+
+```c
+while (k_msgq_get(&uart_msgq, &tx_buf, K_FOREVER) == 0) {
+    print_uart("Echo: ");
+    print_uart(tx_buf);
+    print_uart("\r\n");
+}
+```
+
+Comportamento esperado:
+
+1. O código aguarda indefinidamente (`K_FOREVER`) por uma nova linha de texto na fila (`uart_msgq`).
+2. Quando uma linha chega:
+
+   * Escreve `"Echo: "`
+   * Escreve a linha recebida (`tx_buf`)
+   * Finaliza com quebra de linha `\r\n`
+3. Repete o ciclo para a próxima entrada.
+
+---
+
+### **5️⃣ Envio de dados (`print_uart`)**
+
+A função `print_uart()` envia cada caractere da string informada usando `uart_poll_out()` — um método **bloqueante**, mas simples.
+
+Ela é usada:
+
+* Para exibir as mensagens de boas-vindas
+* Para enviar o eco de volta ao usuário
+
+---
+
+## 💬 **Exemplo de Interação Esperada (via terminal serial)**
 
 ```
 Hello! I'm your echo bot.
 Tell me something and press enter:
 Type e.g. "Hi there!" and hit enter!
+```
 
+Usuário digita:
+
+```
+Hi there!
+```
+
+Bot responde:
+
+```
 Echo: Hi there!
 ```
 
-O usuário digita uma mensagem (ex.: *Hi there!*), pressiona *Enter*, e o bot responde com a mesma mensagem antecedida por *"Echo:"*.
+Usuário digita outra linha:
+
+```
+Zephyr is cool
+```
+
+Bot responde:
+
+```
+Echo: Zephyr is cool
+```
+
+O ciclo continua indefinidamente.
+
+---
+
+## ⚠️ **Tratamento de Casos Especiais**
+
+| Situação                            | Comportamento esperado                        |
+| ----------------------------------- | --------------------------------------------- |
+| Linha muito longa (> 31 caracteres) | Caracteres excedentes são descartados         |
+| Linha vazia (apenas *Enter*)        | Gera eco: `Echo:`                             |
+| Fila cheia (10 mensagens pendentes) | Mensagens novas são ignoradas                 |
+| UART não pronta                     | Mensagem de erro no console e fim da execução |
+| Erro ao configurar interrupção      | Exibe mensagem explicativa e encerra          |
+
+---
+
+## 🧩 **Resumo funcional**
+
+| Função         | Papel                                                         |
+| -------------- | ------------------------------------------------------------- |
+| `serial_cb()`  | ISR da UART: lê caracteres e envia mensagens completas à fila |
+| `print_uart()` | Envia texto para o terminal, caractere a caractere            |
+| `main()`       | Inicializa UART, exibe mensagens e ecoa entrada recebida      |
+
+---
 
 
 ### **3.2 Casos de Teste Planejados (TDD)**
