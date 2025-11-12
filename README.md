@@ -30,17 +30,20 @@ docs/
 
 # 3. Etapa 1 – Echo Bot (UART Polling/Interrupt)
 
+---
+
 ## 3.1 Descrição do Funcionamento
 
 Descrever aqui de forma textual o comportamento esperado baseado no exemplo oficial.
 Link usado como referência:
 [https://docs.zephyrproject.org/latest/samples/drivers/uart/echo_bot/README.html](https://docs.zephyrproject.org/latest/samples/drivers/uart/echo_bot/README.html)
 
+---
+
 ## **Descrição do Comportamento Esperado – UART Echo Bot**
 
 O *UART Echo Bot* é um exemplo simples que demonstra o uso do driver UART para comunicação serial. O programa atua como um “bot” que recebe dados digitados pelo usuário via console UART e devolve exatamente o mesmo conteúdo após o usuário pressionar a tecla *Enter*.
 
----
 
 ## 🧭 **Visão Geral do Comportamento**
 
@@ -53,7 +56,6 @@ Durante o funcionamento:
 * O **envio** da resposta é feito **por polling** (síncrono), caractere a caractere.
 * O programa fica rodando indefinidamente, repetindo o ciclo de leitura → eco → espera por nova entrada.
 
----
 
 ## ⚙️ **Fluxo de Execução Esperado**
 
@@ -76,7 +78,6 @@ Durante o funcionamento:
    Tell me something and press enter:
    ```
 
----
 
 ### **2️⃣ Recepção de dados (Interrupção via `serial_cb`)**
 
@@ -94,7 +95,6 @@ Comportamento detalhado:
 * Se o buffer encher antes do *Enter*, os caracteres excedentes são descartados.
 * Se a fila estiver cheia (10 mensagens pendentes), novas mensagens são descartadas silenciosamente.
 
----
 
 ### **3️⃣ Fila de mensagens (`k_msgq`)**
 
@@ -106,7 +106,6 @@ A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt cal
 
 Ela permite que a função principal espere por mensagens novas **sem bloquear o recebimento de interrupções**.
 
----
 
 ### **4️⃣ Loop principal (`main`)**
 
@@ -130,7 +129,6 @@ Comportamento esperado:
    * Finaliza com quebra de linha `\r\n`
 3. Repete o ciclo para a próxima entrada.
 
----
 
 ### **5️⃣ Envio de dados (`print_uart`)**
 
@@ -141,7 +139,6 @@ Ela é usada:
 * Para exibir as mensagens de boas-vindas
 * Para enviar o eco de volta ao usuário
 
----
 
 ## 💬 **Exemplo de Interação Esperada (via terminal serial)**
 
@@ -177,7 +174,6 @@ Echo: Zephyr is cool
 
 O ciclo continua indefinidamente.
 
----
 
 ## ⚠️ **Tratamento de Casos Especiais**
 
@@ -189,7 +185,6 @@ O ciclo continua indefinidamente.
 | UART não pronta                     | Mensagem de erro no console e fim da execução |
 | Erro ao configurar interrupção      | Exibe mensagem explicativa e encerra          |
 
----
 
 ## 🧩 **Resumo funcional**
 
@@ -203,7 +198,6 @@ O ciclo continua indefinidamente.
 
 ## **3.2 Casos de Teste Planejados (TDD)** – *UART Echo Bot (Zephyr)*
 
----
 
 ### **CT1 – Eco básico**
 
@@ -213,7 +207,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | `Echo: Hello`                                                                                                                                                                                  |
 | **Critério de Aceitação:** | O texto deve ser ecoado exatamente como digitado, com o prefixo “Echo: ” e apenas após o *Enter* ser recebido (fim da linha detectado). O sistema deve permanecer pronto para próxima entrada. |
 
----
 
 ### **CT2 – Linha vazia**
 
@@ -223,7 +216,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | `Echo:` *(linha vazia após o prefixo)*                                                                                                                              |
 | **Critério de Aceitação:** | O sistema não deve travar nem gerar erro. Deve ecoar uma linha vazia, demonstrando que o *callback* e a fila (`k_msgq`) tratam corretamente mensagens sem conteúdo. |
 
----
 
 ### **CT3 – Linha longa (acima de 31 caracteres)**
 
@@ -233,7 +225,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Apenas os primeiros 31 caracteres são ecoados (restante truncado). Exemplo: `Echo: <primeiros 31 caracteres>`                                  |
 | **Critério de Aceitação:** | O sistema deve descartar caracteres excedentes sem travar, conforme lógica `rx_buf_pos < sizeof(rx_buf)-1`. Nenhum erro ou reset deve ocorrer. |
 
----
 
 ### **CT4 – Caracteres especiais**
 
@@ -243,7 +234,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | `Echo: !@#$%&*()_+-=[]{};:'",.<>/?\|`                                                                                 |
 | **Critério de Aceitação:** | Todos os caracteres devem ser transmitidos e recebidos sem alteração. Nenhum símbolo deve ser perdido ou substituído. |
 
----
 
 ### **CT5 – Caracteres não ASCII (UTF-8)**
 
@@ -253,7 +243,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | `Echo: Olá, você está bem? äöüñç` *(ou comportamento definido caso UART não suporte UTF-8)*                                                                              |
 | **Critério de Aceitação:** | Se o hardware/UART suportar UTF-8, os caracteres devem ser ecoados corretamente. Caso contrário, caracteres multibyte podem ser omitidos, mas o sistema não deve travar. |
 
----
 
 ### **CT6 – Múltiplas linhas seguidas**
 
@@ -263,7 +252,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Cada linha é ecoada individualmente, ex.: `Echo: A`, `Echo: B`, `Echo: C`...                                                          |
 | **Critério de Aceitação:** | O sistema deve processar todas as mensagens na ordem correta, sem perder ou misturar linhas. A fila `k_msgq` deve manter a sequência. |
 
----
 
 ### **CT7 – Alta taxa de entrada de caracteres**
 
@@ -273,7 +261,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Cada linha deve ser ecoada corretamente, mesmo em alta taxa de transmissão.                                                                                                                                                                 |
 | **Critério de Aceitação:** | O ISR (`serial_cb`) deve conseguir lidar com o fluxo sem perda de dados. Caso a fila (`k_msgq`) encha (10 mensagens), o programa deve continuar funcional e descartar silenciosamente mensagens excedentes. Nenhum travamento deve ocorrer. |
 
----
 
 ### **CT8 – Reset durante digitação**
 
@@ -284,7 +271,6 @@ O ciclo continua indefinidamente.
 |                            | `Hello! I'm your echo bot.`<br>`Tell me something and press enter:`                                                                                    |
 | **Critério de Aceitação:** | O buffer de recepção (`rx_buf_pos`) deve ser reiniciado. Nenhum dado parcial anterior deve ser ecoado. O sistema deve voltar ao estado inicial normal. |
 
----
 
 ### **CT9 – Erro de UART / ruído na linha**
 
@@ -294,7 +280,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | O sistema continua executando. Pode ignorar caracteres inválidos, mas nunca deve travar ou reiniciar.                                                     |
 | **Critério de Aceitação:** | Mesmo com ruído ou erro de transmissão, o *callback* `serial_cb` deve continuar funcional. Mensagens válidas subsequentes devem ser ecoadas corretamente. |
 
----
 
 ### **CT10 – Fila cheia**
 
@@ -304,7 +289,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Apenas as 10 primeiras linhas são ecoadas; as demais são descartadas silenciosamente.                                                              |
 | **Critério de Aceitação:** | A fila (`k_msgq`) deve respeitar seu limite (10). O sistema não deve travar nem exibir comportamento inesperado ao descartar mensagens adicionais. |
 
----
 
 ### **CT11 – UART não disponível**
 
@@ -314,7 +298,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Mensagem de erro exibida via `printk`: `"UART device not found!"`                                  |
 | **Critério de Aceitação:** | O programa deve detectar a ausência da UART e finalizar com erro controlado, sem travar o sistema. |
 
----
 
 ### **CT12 – Falha ao configurar callback**
 
@@ -324,7 +307,6 @@ O ciclo continua indefinidamente.
 | **Saída esperada:**        | Impressão de erro adequada conforme o código de retorno: <br> `Interrupt-driven UART API support not enabled`, `UART device does not support interrupt-driven API`, ou `Error setting UART callback: X` |
 | **Critério de Aceitação:** | O sistema deve exibir a mensagem correspondente e encerrar com segurança sem prosseguir ao loop principal.                                                                                              |
 
----
 
 ### 🧾 **Resumo**
 
