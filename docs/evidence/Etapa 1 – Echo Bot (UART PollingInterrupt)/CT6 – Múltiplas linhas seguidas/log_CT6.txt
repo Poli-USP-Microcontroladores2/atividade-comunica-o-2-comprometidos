@@ -1,0 +1,8 @@
+Hello! I'm your echo bot.
+Tell me something and press enter:
+---- Sent utf8 encoded message: "Linha A\r" ----
+Echo: Linha A
+---- Sent utf8 encoded message: "Linha B\r" ----
+Echo: Linha B
+---- Sent utf8 encoded message: "Linha C\r" ----
+Echo: Linha C
