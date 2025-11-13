@@ -633,7 +633,7 @@ A alternância periódica entre TX e RX reforça o uso flexível da UART, útil 
 
 ## 4.3 Implementação
 
-A implementação seguiu o mesmo procedimento adotado na atividade anterior (item 3.3).
+A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação).
 
 ## 4.4 Evidências de Funcionamento
 
