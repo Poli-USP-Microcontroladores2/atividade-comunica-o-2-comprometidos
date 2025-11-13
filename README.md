@@ -472,6 +472,172 @@ Descrever o comportamento esperado de forma textual, especialmente com a altern�
 Link usado como referência:
 [https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html](https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html)
 
+---
+
+# 🧠 **Descrição do funcionamento – Código “Async API (Transmissão/Recepção Assíncrona)”**
+
+O código implementa uma aplicação de **comunicação UART assíncrona** utilizando o **driver UART do Zephyr RTOS**.
+Diferente do exemplo “Echo Bot” (que reage a cada byte recebido e responde imediatamente), aqui a UART trabalha de forma **não bloqueante** e **event-driven**, ou seja, **a transmissão e recepção são gerenciadas por eventos e interrupções**.
+
+---
+
+## ⚙️ **1. Inicialização e configuração da UART**
+
+Logo no início, o código seleciona o periférico UART padrão configurado no *Device Tree*:
+
+```c
+#define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
+static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
+```
+
+Isso permite que o mesmo código rode em qualquer placa suportada, sem precisar alterar manualmente o nome da UART.
+
+Em seguida, o **callback assíncrono** é registrado:
+
+```c
+uart_callback_set(uart_dev, uart_callback, (void *)uart_dev);
+```
+
+Esse callback (`uart_callback`) é responsável por tratar **todos os eventos da UART**, como:
+
+* **UART_TX_DONE** → transmissão concluída;
+* **UART_RX_RDY** → novos dados recebidos;
+* **UART_RX_BUF_REQUEST** → o driver solicita um novo buffer de recepção;
+* **UART_RX_DISABLED** → recepção foi desligada.
+
+---
+
+## 📡 **2. Estrutura geral de funcionamento**
+
+O código é construído em torno de um **loop principal (`while (1)`)**, que faz o seguinte a cada iteração:
+
+1. **Aguarda 5 segundos**
+
+   ```c
+   k_sleep(K_SECONDS(5));
+   ```
+
+   Simula um intervalo entre transmissões.
+
+2. **Gera e transmite pacotes aleatórios**
+   O programa cria entre **1 e 4 pacotes** por iteração:
+
+   ```c
+   num_tx = (sys_rand32_get() % LOOP_ITER_MAX_TX) + 1;
+   ```
+
+   Cada pacote contém um texto como:
+
+   ```
+   Loop 3: Packet 2
+   ```
+
+   e é armazenado em um **buffer da pool `tx_pool`**.
+
+3. **Transmite pacotes de forma assíncrona**
+   A função `uart_tx()` envia o conteúdo sem bloquear a execução:
+
+   * Se a UART estiver livre, o pacote é transmitido imediatamente.
+   * Se a UART estiver ocupada (`-EBUSY`), o pacote é colocado em uma fila (`k_fifo tx_queue`) e enviado assim que o evento `UART_TX_DONE` liberar o canal.
+
+4. **Alterna o estado de recepção RX**
+   A cada ciclo, o RX é ativado ou desativado:
+
+   ```c
+   if (rx_enabled) {
+       uart_rx_disable(uart_dev);
+   } else {
+       uart_rx_enable(uart_dev, async_rx_buffer[0], RX_CHUNK_LEN, 100);
+   }
+   ```
+
+   Isso demonstra o controle dinâmico da recepção, útil em aplicações que economizam energia.
+
+---
+
+## 📬 **3. Mecanismo de recepção assíncrona**
+
+A recepção é baseada em **buffers duplos (double-buffering)**:
+
+```c
+uint8_t async_rx_buffer[2][RX_CHUNK_LEN];
+```
+
+O driver UART solicita buffers quando precisa (evento `UART_RX_BUF_REQUEST`):
+
+```c
+uart_rx_buf_rsp(dev, async_rx_buffer[async_rx_buffer_idx], sizeof(async_rx_buffer[0]));
+```
+
+Enquanto um buffer está sendo preenchido, o outro é preparado para uso — isso garante **nenhuma perda de dados** mesmo em transmissões contínuas.
+
+Quando novos dados chegam, o evento `UART_RX_RDY` é disparado:
+
+```c
+LOG_HEXDUMP_INF(evt->data.rx.buf + evt->data.rx.offset, evt->data.rx.len, "RX_RDY");
+```
+
+O código imprime o conteúdo recebido no log, em formato hexadecimal.
+
+---
+
+## 🚀 **4. Tratamento de eventos de transmissão**
+
+Quando um envio termina (`UART_TX_DONE`):
+
+1. O buffer utilizado é liberado:
+
+   ```c
+   net_buf_unref(tx_pending_buffer);
+   ```
+2. Se houver pacotes na fila (`tx_queue`), o próximo é imediatamente transmitido:
+
+   ```c
+   buf = k_fifo_get(&tx_queue, K_NO_WAIT);
+   uart_tx(dev, buf->data, buf->len, 0);
+   ```
+
+Esse mecanismo garante **transmissão contínua sem bloqueio**, mesmo quando múltiplos pacotes são enfileirados.
+
+---
+
+## 🧩 **5. Recursos e estruturas do Zephyr utilizados**
+
+| Componente                       | Função                                                         |
+| -------------------------------- | -------------------------------------------------------------- |
+| `NET_BUF_POOL_DEFINE`            | Cria um pool de buffers de memória para os pacotes TX.         |
+| `k_fifo`                         | Fila usada para armazenar pacotes aguardando transmissão.      |
+| `uart_callback_set()`            | Registra função de callback para eventos UART.                 |
+| `uart_tx()` / `uart_rx_enable()` | Funções assíncronas de transmissão e recepção.                 |
+| `LOG_INF` / `LOG_DBG`            | Sistema de logs do Zephyr (níveis de debug e informação).      |
+| `sys_rand32_get()`               | Gera número aleatório (para simular variabilidade de pacotes). |
+
+---
+
+## 🧾 **6. Resumo do comportamento**
+
+| Etapa          | Ação                                              |
+| -------------- | ------------------------------------------------- |
+| Inicialização  | UART configurada e callback registrado            |
+| Loop principal | Envia pacotes aleatórios e alterna o RX           |
+| Transmissão    | Feita de forma assíncrona e enfileirada           |
+| Recepção       | Duplo buffer evita perda de dados                 |
+| Logs           | Mostram TX, RX e status do sistema periodicamente |
+
+---
+
+## ✅ **7. Conclusão**
+
+Esse exemplo demonstra um uso **robusto e eficiente da UART assíncrona no Zephyr**, ideal para aplicações em que:
+
+* há **transmissões periódicas ou simultâneas**;
+* é necessário **lidar com alto volume de dados** sem bloquear tarefas;
+* o sistema deve **manter responsividade** durante a comunicação serial.
+
+O uso de buffers, filas e interrupções permite **comunicação full-duplex**, escalável e com mínimo consumo de CPU — uma arquitetura típica de sistemas embarcados modernos.
+
+---
+
 ## 4.2 Casos de Teste Planejados (TDD)
 
 ### CT1 – Transmissão de pacotes a cada 5s
