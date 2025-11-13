@@ -386,7 +386,7 @@ O processo demonstrou corretamente o funcionamento da comunicação UART no Zeph
 
 ## 3.4 Evidências de Funcionamento
 
-Todas as evidências em `docs/evidence/etapa1_echobot_uart_pollingInterrupt/`.
+Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingInterrupt/`.
 
 ---
 
@@ -414,12 +414,47 @@ Todas as evidências em `docs/evidence/etapa1_echobot_uart_pollingInterrupt/`.
 
 ---
 
-Adicionar aqui pequenos trechos ilustrativos:
+### Evidências CT4 – Caracteres especiais
 
-```
-Hello! I'm your echo bot. Tell me something and press enter:
-Echo: Hello World!
-```
+![Imagem CT4 – Caracteres especiais](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct4_caracteres_especiais/log_ct4.PNG)
+
+[Link para log CT4 – Caracteres especiais](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct4_caracteres_especiais/log_ct4.txt)
+
+---
+
+### Evidências CT5 – Caracteres não ASCII (UTF-8)
+
+![Imagem CT5 – Caracteres não ASCII (UTF-8)](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct5_caracteres_nao_ascii_utf_8/log_ct5.PNG)
+
+[Link para log CT5 – Caracteres não ASCII (UTF-8)](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct5_caracteres_nao_ascii_utf_8/log_ct5.txt)
+
+---
+
+### Evidências CT6 – Múltiplas linhas seguidas
+
+![Imagem CT6 – Múltiplas linhas seguidas](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct6_multiplas_linhas_seguidas/log_ct6.PNG)
+
+[Link para log CT6 – Múltiplas linhas seguidas](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct6_multiplas_linhas_seguidas/log_ct6.txt)
+
+---
+
+### Evidências CT7 – Alta taxa de entrada de caracteres
+
+![Imagem CT7 – Alta taxa de entrada de caracteres](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/log_ct7.PNG)
+
+[Link para script python utilizado para alta taxa de entrada](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/script_ct7.py)
+
+[Link para CT7 – Alta taxa de entrada de caracteres](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/log_ct7.txt)
+
+---
+
+### Evidências CT8 – Reset durante digitação
+
+![Imagem CT8 – Reset durante digitação](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct8_reset_durante_digitacao/log_ct8.PNG)
+
+[Link para log CT8 – Reset durante digitação](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct8_reset_durante_digitacao/log_ct8.txt)
+
+---
 
 ## 3.5 Diagramas de Sequência D2
 
