@@ -386,16 +386,33 @@ O processo demonstrou corretamente o funcionamento da comunicação UART no Zeph
 
 ## 3.4 Evidências de Funcionamento
 
-Salvar evidências em `docs/evidence/echo_bot/`.
+Todas as evidências em `docs/evidence/etapa1_echobot_uart_pollingInterrupt/`.
 
-Exemplo de referência no README:
+---
 
-```
-[Link para o log CT1](docs/evidence/echo_bot/ct1_output.txt)
-```
-[Teste texto](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct1_eco_básico/log_ct1.txt)
+### Evidências CT1 – Eco básico
 
-![Teste imagem](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct1_eco_básico/log_ct1.PNG)
+![Imagem log CT1 – Eco básico](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct1_eco_básico/log_ct1.PNG)
+
+[Link para log CT1 – Eco básico](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct1_eco_básico/log_ct1.txt)
+
+---
+
+### Evidências CT2 – Linha vazia
+
+![Imagem log CT2 – Linha vazia](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct2_linha_vazia/log_ct2.PNG)
+
+[Link para log CT2 – Linha vazia](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct2_linha_vazia/log_ct2.txt)
+
+---
+
+### Evidências CT3 – Linha longa (acima de 31 caracteres)
+
+![Imagem CT3 – Linha longa (acima de 31 caracteres)](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct3_linha_longa_acima_de_31_caracteres/log_ct3.PNG)
+
+[Link para log CT3 – Linha longa (acima de 31 caracteres)](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct3_linha_longa_acima_de_31_caracteres/log_ct3.txt)
+
+---
 
 Adicionar aqui pequenos trechos ilustrativos:
 
