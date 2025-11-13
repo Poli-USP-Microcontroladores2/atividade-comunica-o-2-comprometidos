@@ -386,7 +386,7 @@ O processo demonstrou corretamente o funcionamento da comunicação UART no Zeph
 
 ## 3.4 Evidências de Funcionamento
 
-Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingInterrupt/`.
+Todas as evidências disponíveis em [docs/evidence/etapa1_echobot_uart_pollingInterrupt/](docs/evidence/etapa1_echobot_uart_pollingInterrupt/).
 
 ---
 
@@ -458,6 +458,8 @@ Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingI
 
 ## 3.5 Diagramas de Sequência D2
 
+Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/)
+
 ```
 shape: sequence_diagram
 
@@ -486,9 +488,8 @@ loop "aguarda entrada do usuário"
     end
 end
 ```
-![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
 
-[Diagrama D2 echo_bot](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/)
+![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
 
 ---
 
@@ -696,9 +697,49 @@ Data (ASCII): Hello
 
 ## 4.5 Diagramas de Sequência D2
 
-Vide material de referência: https://d2lang.com/tour/sequence-diagrams/
+Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/)
 
-Adicionar arquivos (diagrama completo e o código-base para geração do diagrama) em `docs/sequence-diagrams/`.
+```
+shape: sequence_diagram
+
+App -> UART_Driver: uart_callback_set
+note over UART_Driver: Registra callback assíncrono
+
+loop a cada 5 segundos
+    App -> App: sys_rand32_get → define num_tx
+    
+    loop para cada pacote
+        App -> UART_Driver: net_buf_alloc / preenche tx_buf
+        App -> UART_Driver: uart_tx(tx_buf)
+        
+        alt UART livre
+            UART_Driver -> UART_Hardware: inicia transmissão
+            UART_Hardware -> UART_Driver: UART_TX_DONE
+            UART_Driver -> k_fifo: verifica fila e envia próximo buffer
+        else UART ocupado
+            UART_Driver -> k_fifo: enfileira tx_buf
+        end
+    end
+
+    App -> UART_Driver: alterna RX enable/disable
+    UART_Driver -> UART_Hardware: uart_rx_enable / uart_rx_disable
+end
+
+note over UART_Hardware: Interrupções UART geradas
+
+== Eventos assíncronos UART ==
+
+UART_Hardware -> UART_Driver: UART_RX_BUF_REQUEST
+UART_Driver -> UART_Hardware: uart_rx_buf_rsp
+
+UART_Hardware -> UART_Driver: UART_RX_RDY
+note over UART_Driver: Dados RX recebidos
+
+UART_Hardware -> UART_Driver: UART_TX_DONE
+note over UART_Driver: Libera buffer TX e processa fila
+```
+
+![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg)
 
 ---
 
