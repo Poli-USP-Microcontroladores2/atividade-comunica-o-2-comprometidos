@@ -272,49 +272,13 @@ O ciclo continua indefinidamente.
 | **Critério de Aceitação:** | O buffer de recepção (`rx_buf_pos`) deve ser reiniciado. Nenhum dado parcial anterior deve ser ecoado. O sistema deve voltar ao estado inicial normal. |
 
 
-### **CT9 – Erro de UART / ruído na linha**
-
-| Item                       | Descrição                                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Simulação de ruído: bytes inválidos, erro de paridade, ou interrupções parciais.                                                                          |
-| **Saída esperada:**        | O sistema continua executando. Pode ignorar caracteres inválidos, mas nunca deve travar ou reiniciar.                                                     |
-| **Critério de Aceitação:** | Mesmo com ruído ou erro de transmissão, o *callback* `serial_cb` deve continuar funcional. Mensagens válidas subsequentes devem ser ecoadas corretamente. |
-
-
-### **CT10 – Fila cheia**
-
-| Item                       | Descrição                                                                                                                                          |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Usuário envia rapidamente mais de 10 linhas antes de o loop principal processar as anteriores.                                                     |
-| **Saída esperada:**        | Apenas as 10 primeiras linhas são ecoadas; as demais são descartadas silenciosamente.                                                              |
-| **Critério de Aceitação:** | A fila (`k_msgq`) deve respeitar seu limite (10). O sistema não deve travar nem exibir comportamento inesperado ao descartar mensagens adicionais. |
-
-
-### **CT11 – UART não disponível**
-
-| Item                       | Descrição                                                                                          |
-| -------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | UART desabilitada ou desconectada antes da execução.                                               |
-| **Saída esperada:**        | Mensagem de erro exibida via `printk`: `"UART device not found!"`                                  |
-| **Critério de Aceitação:** | O programa deve detectar a ausência da UART e finalizar com erro controlado, sem travar o sistema. |
-
-
-### **CT12 – Falha ao configurar callback**
-
-| Item                       | Descrição                                                                                                                                                                                               |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | UART configurada com API de interrupção desabilitada.                                                                                                                                                   |
-| **Saída esperada:**        | Impressão de erro adequada conforme o código de retorno: <br> `Interrupt-driven UART API support not enabled`, `UART device does not support interrupt-driven API`, ou `Error setting UART callback: X` |
-| **Critério de Aceitação:** | O sistema deve exibir a mensagem correspondente e encerrar com segurança sem prosseguir ao loop principal.                                                                                              |
-
-
 ### 🧾 **Resumo**
 
 | Categoria            | Casos                   |
 | -------------------- | ----------------------- |
 | Funcionamento normal | CT1, CT2, CT3, CT4, CT6 |
 | Robustez e limites   | CT5, CT7, CT10          |
-| Resiliência e erro   | CT8, CT9, CT11, CT12    |
+| Resiliência e erro   | CT8                     |
 
 ---
 

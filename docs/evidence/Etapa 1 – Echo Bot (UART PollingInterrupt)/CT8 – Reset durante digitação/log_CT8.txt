@@ -1,0 +1,5 @@
+Hello! I'm your echo bot.
+Tell me something and press enter:
+*** Booting Zephyr OS build v4.3.0-rc3-14-g13daf245a801 ***
+Hello! I'm your echo bot.
+Tell me something and press enter:
