@@ -633,12 +633,13 @@ A alternância periódica entre TX e RX reforça o uso flexível da UART, útil 
 
 ## 4.3 Implementação
 
-A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação).
-Difererindo na compilação que foi utilizado
+A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação). 
 
-     ```powershell
-     west build -p always -b frdm_kl25z samples/drivers/uart/async_api
-     ```
+Difererindo no comando de compilação, no qual foi utilizado:
+
+    ```powershell
+   west build -p always -b frdm_kl25z samples/drivers/uart/async_api
+    ```
 
 ## 4.4 Evidências de Funcionamento
 
