@@ -45,7 +45,7 @@ Link usado como referência:
 O *UART Echo Bot* é um exemplo simples que demonstra o uso do driver UART para comunicação serial. O programa atua como um “bot” que recebe dados digitados pelo usuário via console UART e devolve exatamente o mesmo conteúdo após o usuário pressionar a tecla *Enter*.
 
 
-### 🧭 **Visão Geral do Comportamento**
+### **Visão Geral do Comportamento**
 
 O programa inicializa a UART padrão do Zephyr (geralmente a mesma usada pelo console/shell) e passa a funcionar como um **bot de eco via serial**.
 Ele aguarda o usuário digitar uma linha de texto (finalizada com *Enter*), e então envia de volta a mesma linha, precedida da palavra **“Echo:”**.
@@ -57,9 +57,9 @@ Durante o funcionamento:
 * O programa fica rodando indefinidamente, repetindo o ciclo de leitura → eco → espera por nova entrada.
 
 
-### ⚙️ **Fluxo de Execução Esperado**
+### **Fluxo de Execução Esperado**
 
-#### **1️⃣ Inicialização**
+#### **1. Inicialização**
 
 1. O código obtém o *device handle* da UART configurada como `zephyr_shell_uart` no *Device Tree*.
 2. Ele verifica se o dispositivo está pronto com `device_is_ready()`.
@@ -79,7 +79,7 @@ Durante o funcionamento:
    ```
 
 
-#### **2️⃣ Recepção de dados (Interrupção via `serial_cb`)**
+#### **2. Recepção de dados (Interrupção via `serial_cb`)**
 
 A função `serial_cb()` é chamada automaticamente sempre que a UART recebe dados.
 
@@ -96,7 +96,7 @@ Comportamento detalhado:
 * Se a fila estiver cheia (10 mensagens pendentes), novas mensagens são descartadas silenciosamente.
 
 
-#### **3️⃣ Fila de mensagens (`k_msgq`)**
+#### **3. Fila de mensagens (`k_msgq`)**
 
 A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt callback* e a *thread principal* (`main()`).
 
@@ -107,7 +107,7 @@ A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt cal
 Ela permite que a função principal espere por mensagens novas **sem bloquear o recebimento de interrupções**.
 
 
-#### **4️⃣ Loop principal (`main`)**
+#### **4. Loop principal (`main`)**
 
 A função `main()` entra em um loop infinito:
 
@@ -130,7 +130,7 @@ Comportamento esperado:
 3. Repete o ciclo para a próxima entrada.
 
 
-#### **5️⃣ Envio de dados (`print_uart`)**
+#### **5. Envio de dados (`print_uart`)**
 
 A função `print_uart()` envia cada caractere da string informada usando `uart_poll_out()` — um método **bloqueante**, mas simples.
 
@@ -140,7 +140,7 @@ Ela é usada:
 * Para enviar o eco de volta ao usuário
 
 
-### 💬 **Exemplo de Interação Esperada (via terminal serial)**
+### **Exemplo de Interação Esperada (via terminal serial)**
 
 ```
 Hello! I'm your echo bot.
@@ -175,7 +175,7 @@ Echo: Zephyr is cool
 O ciclo continua indefinidamente.
 
 
-### ⚠️ **Tratamento de Casos Especiais**
+### **Tratamento de Casos Especiais**
 
 | Situação                            | Comportamento esperado                        |
 | ----------------------------------- | --------------------------------------------- |
@@ -186,7 +186,7 @@ O ciclo continua indefinidamente.
 | Erro ao configurar interrupção      | Exibe mensagem explicativa e encerra          |
 
 
-### 🧩 **Resumo funcional**
+### **Resumo funcional**
 
 | Função         | Papel                                                         |
 | -------------- | ------------------------------------------------------------- |
@@ -272,7 +272,7 @@ O ciclo continua indefinidamente.
 | **Critério de Aceitação:** | O buffer de recepção (`rx_buf_pos`) deve ser reiniciado. Nenhum dado parcial anterior deve ser ecoado. O sistema deve voltar ao estado inicial normal. |
 
 
-### 🧾 **Resumo**
+### **Resumo**
 
 | Categoria            | Casos                   |
 | -------------------- | ----------------------- |
@@ -290,7 +290,7 @@ Em vez de executar o código pelo PlatformIO no VSCode, seguiu-se o procedimento
 Esse guia fornece as instruções necessárias para **instalar o ambiente de desenvolvimento, configurar o SDK e o gerenciador de builds (west)**, bem como **compilar, gravar e executar aplicações de exemplo em placas de desenvolvimento compatíveis**, como a **FRDM-KL25Z**.
 
 
-### 🧩 **Etapas do processo (baseadas no Getting Started Guide)**
+### **Etapas do processo (baseadas no Getting Started Guide)**
 
 1. **Configuração do ambiente:**
 
@@ -371,13 +371,13 @@ Esse guia fornece as instruções necessárias para **instalar o ambiente de des
      ```
 
 
-### 💡 **Resumo do comportamento**
+### **Resumo do comportamento**
 
 O *Echo Bot UART* utiliza a API de interrupção da UART para **receber dados de forma assíncrona** e a API de polling para **enviar os dados de volta ao console**.
 Cada linha digitada e finalizada com *Enter* é armazenada em uma fila (`k_msgq`) e posteriormente reenviada pelo firmware, simulando o comportamento de um "bot" que repete o que o usuário digita.
 
 
-### ✅ **Conclusão**
+### **Conclusão**
 
 O exemplo foi executado com sucesso seguindo o procedimento do **Getting Started Guide**, sem necessidade de alterações no código.
 O processo demonstrou corretamente o funcionamento da comunicação UART no Zephyr, com envio e recepção de mensagens de texto através da placa FRDM-KL25Z.
