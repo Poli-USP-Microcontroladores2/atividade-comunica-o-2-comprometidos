@@ -1,8 +1,8 @@
 /*
- * Polling-based TX/RX cycle for FRDM board
- *
- * Transmit "Cassoli carregado" por 5 segundos
- * depois recebe dados por 5 segundos, repetindo o ciclo.
+ * CÓDIGO DE TESTE
+ * * O objetivo é verificar se o ciclo TX/RX funciona
+ * quando os 'printk()' são removidos do loop principal,
+ * evitando assim conflito com uart_poll_out().
  */
 
 #include <zephyr/kernel.h>
@@ -21,12 +21,14 @@ void poll_receive(uint32_t duration_ms)
 {
     uint8_t c;
     int64_t start = k_uptime_get();
+    
     while (k_uptime_get() - start < duration_ms) {
         if (uart_poll_in(uart_dev, &c) == 0) {
             if (c != '\r') {  // ignora carriage return
                 uart_poll_out(uart_dev, c); // ecoa de volta
             }
         }
+        k_msleep(1); // Cede CPU para o RTOS
     }
 }
 
@@ -45,6 +47,9 @@ void poll_transmit(uint32_t duration_ms)
     }
 }
 
+/*
+ * FUNÇÃO MAIN() MODIFICADA PARA O TESTE
+ */
 void main(void)
 {
     if (!device_is_ready(uart_dev)) {
@@ -53,10 +58,18 @@ void main(void)
     }
 
     while (1) {
-        printk("=== Ciclo TX: 5 segundos transmitindo ===\n");
-        poll_transmit(5000);
-
-        printk("=== Ciclo RX: 5 segundos recebendo ===\n");
+        
+        /* 1. Primeiro recebe (e ecoa) por 5 segundos */
+        
+        // TESTE: A linha de printk() abaixo foi comentada
+        // printk("=== Ciclo RX: 5 segundos recebendo (modo echo) ===\n"); 
         poll_receive(5000);
+
+        
+        /* 2. Depois transmite sua mensagem por 5 segundos */
+        
+        // TESTE: A linha de printk() abaixo foi comentada
+        // printk("=== Ciclo TX: 5 segundos transmitindo ===\n"); 
+        poll_transmit(5000);
     }
 }
