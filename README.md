@@ -460,7 +460,37 @@ Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingI
 
 Vide material de apoio: https://d2lang.com/tour/sequence-diagrams/
 
-Adicionar arquivos (diagrama completo e o código-base para geração do diagrama) em `docs/sequence-diagrams/`.
+```
+shape: sequence_diagram
+
+# Echo Bot UART - Diagrama de Sequência
+
+App -> UART_Driver: "uart_irq_callback_user_data_set(serial_cb)"
+UART_Driver -> UART_Hardware: "Registra callback de interrupção"
+
+App -> UART_Driver: "uart_irq_rx_enable()"
+UART_Driver -> UART_Hardware: "Habilita RX"
+
+App -> UART_Hardware: "print_uart('Hello! I\\'m your echo bot.')"
+App -> UART_Hardware: "print_uart('Tell me something and press enter:')"
+
+loop "aguarda entrada do usuário"
+    UART_Hardware -> UART_Driver: "caracteres recebidos via IRQ"
+    UART_Driver -> UART_Driver: "serial_cb() processa cada caractere"
+    alt "fim de linha detectado (\\r ou \\n)"
+        UART_Driver -> k_msgq: "k_msgq_put(rx_buf)"
+        k_msgq -> App: "linha pronta para eco"
+        App -> UART_Hardware: "print_uart('Echo: ')"
+        App -> UART_Hardware: "print_uart(linha)"
+        App -> UART_Hardware: "print_uart('\\r\\n')"
+    else "linha não finalizada"
+        UART_Driver -> UART_Driver: "acumula caractere em rx_buf"
+    end
+end
+```
+![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
+
+[Diagrama D2 echo_bot](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/)
 
 ---
 
