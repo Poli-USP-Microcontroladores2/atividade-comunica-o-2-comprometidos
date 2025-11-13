@@ -605,7 +605,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 ## 4.2 Casos de Teste Planejados (TDD)
 
 
-# **CT1 – Comportamento do ciclo completo TX/RX (funcionamento geral)**
+### **CT1 – Comportamento do ciclo completo TX/RX (funcionamento geral)**
 
 | Item                       | Descrição                                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -614,7 +614,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | O ciclo RX→TX→RX continua indefinidamente, sem travar, sem apresentar erros na UART e sem interferências entre as fases.                                  |
 
 
-# **CT2 – Teste de Recepção (RX) com eco durante 5 segundos**
+### **CT2 – Teste de Recepção (RX) com eco durante 5 segundos**
 
 | Item                       | Descrição                                                                                                                                             |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -623,7 +623,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | Todos os caracteres enviados são ecoados sem perda. O eco deve ocorrer somente na fase RX; durante TX nenhum caractere deve ser ecoado ou processado. |
 
 
-# **CT3 – Teste de Transmissão (TX) durante 5 segundos**
+### **CT3 – Teste de Transmissão (TX) durante 5 segundos**
 
 | Item                       | Descrição                                                                                                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -632,7 +632,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | A transmissão ocorre continuamente durante 5s sem falhas, congelamentos ou interrupção. Letras externas durante TX são ignoradas, confirmando isolamento RX. |
 
 
-# **CT4 – Verificação da temporização dos ciclos (5s RX / 5s TX)**
+### **CT4 – Verificação da temporização dos ciclos (5s RX / 5s TX)**
 
 | Item                       | Descrição                                                                                                                               |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -641,7 +641,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | O desvio máximo é ±0,5s. O tempo de troca entre RX e TX não deve variar visivelmente ou acumular erro ao longo dos ciclos subsequentes. |
 
 
-# **CT5 – Eco rápido / carga alta durante RX**
+### **CT5 – Eco rápido / carga alta durante RX**
 
 | Item                       | Descrição                                                                                                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -650,7 +650,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | Não ocorre queda de desempenho ou bloqueio. Caractere podem ser perdidos se enviadas rápido demais (limitação da UART em polling), mas sem travar o sistema. |
 
 
-# **CT6 – Transmissão contínua sem interferência com RX**
+### **CT6 – Transmissão contínua sem interferência com RX**
 
 | Item                       | Descrição                                                                                                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -659,7 +659,7 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 | **Critério de Aceitação:** | Zero interferência mútua. O TX funciona independentemente de tentativas de RX.                                                                                  |
 
 
-# **CT7 – Estabilidade do loop infinito**
+### **CT7 – Estabilidade do loop infinito**
 
 | Item                       | Descrição                                                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------ |
@@ -673,7 +673,12 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 
 ## 4.3 Implementação
 
-A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação). 
+A implementação original baseada na API assíncrona do Zephyr não era compatível com a placa FRDM-KL25Z, pois o driver UART disponível não oferece suporte aos eventos e funcionalidades necessários (callbacks, buffers de recepção, uart_tx() assíncrono, duplo-buffer, FIFO, etc.).
+Para cumprir o objetivo da atividade — observar a alternância entre transmissão e recepção — o código foi reescrito utilizando apenas UART em modo polling (uart_poll_in e uart_poll_out), que é plenamente suportado pela placa.
+
+A lógica de TX/RX por ciclos de 5 segundos foi preservada, permitindo visualizar claramente o comportamento alternado, mesmo sem os recursos avançados do async_api. A simplificação também eliminou interferências causadas por printk() e manteve o foco nas operações de UART.
+
+Entretanto, a compilação do códgio e envio para a placa seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação). 
 
 Difererindo no comando de compilação, no qual foi utilizado:
 
