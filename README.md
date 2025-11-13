@@ -605,76 +605,68 @@ Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `
 ## 4.2 Casos de Teste Planejados (TDD)
 
 
-### **CT1 – Transmissão de pacotes a cada 5 segundos**
+# **CT1 – Comportamento do ciclo completo TX/RX (funcionamento geral)**
 
-| Item                       | Descrição                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | O sistema inicia a execução normalmente. Nenhum dado é enviado pela UART externa.                                                            |
-| **Saída esperada:**        | A cada 5 segundos, o log exibe mensagens no formato `Loop X: Sending N packets`, seguidas por `Loop X: Packet: Y`.                           |
-| **Critério de Aceitação:** | O intervalo entre ciclos é aproximadamente 5 segundos (±0,5s). Cada pacote é transmitido sem erro. Nenhum travamento ou erro de UART ocorre. |
-
-
-### **CT2 – Recepção de dados (RX habilitado)**
-
-| Item                       | Descrição                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Durante o período em que o log mostra “RX is now enabled”, o usuário envia caracteres ou strings via terminal serial.                        |
-| **Saída esperada:**        | O log exibe eventos `RX_RDY` com *hexdumps* dos dados recebidos.                                                                             |
-| **Critério de Aceitação:** | Todos os bytes enviados devem aparecer nos *logs* sem perda. Caso RX esteja desativado, nada é recebido. Nenhum erro de buffer deve ocorrer. |
+| Item                       | Descrição                                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | O sistema é iniciado e nenhum caractere é enviado externamente.                                                                                           |
+| **Saída esperada:**        | O firmware permanece 5s recebendo caracteres (sem ecoar nada, já que não há entrada) e depois 5s transmitindo repetidamente a string “Cassoli carregado”. |
+| **Critério de Aceitação:** | O ciclo RX→TX→RX continua indefinidamente, sem travar, sem apresentar erros na UART e sem interferências entre as fases.                                  |
 
 
-### **CT3 – Verificação de temporização de 5s**
+# **CT2 – Teste de Recepção (RX) com eco durante 5 segundos**
 
-| Item                       | Descrição                                                                                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Monitorar o log de saída do sistema por pelo menos 3 iterações consecutivas.                                                                           |
-| **Saída esperada:**        | A diferença de tempo entre as mensagens “Loop X” e “Loop X+1” é de aproximadamente 5 segundos.                                                         |
-| **Critério de Aceitação:** | O temporizador `k_sleep(K_SECONDS(5))` deve ser respeitado. Tolerância de ±0,5 segundos. O sistema não deve adiantar nem atrasar de forma perceptível. |
-
-
-### **CT4 – Fila de transmissão cheia (EBUSY)**
-
-| Item                       | Descrição                                                                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Reduzir o tempo de espera (para testes) ou aumentar o número de pacotes transmitidos (`LOOP_ITER_MAX_TX`) de forma que novas transmissões ocorram antes da anterior terminar. |
-| **Saída esperada:**        | Quando a UART estiver ocupada, o log exibe `Queuing buffer <ptr>`. Após o evento `TX_DONE`, os buffers enfileirados são enviados automaticamente.                             |
-| **Critério de Aceitação:** | Nenhum pacote é perdido. A fila `k_fifo` é processada corretamente após cada `TX_DONE`. O sistema continua operando normalmente, sem travar nem perder dados.                 |
+| Item                       | Descrição                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Durante a fase RX (primeiros 5s do ciclo), o usuário envia caracteres aleatórios, palavras ou sequências rápidas pelo terminal serial.                |
+| **Saída esperada:**        | Cada caractere recebido é ecoado imediatamente (exceto '\r'), demonstrando funcionamento contínuo do `uart_poll_in()` seguido de `uart_poll_out()`.   |
+| **Critério de Aceitação:** | Todos os caracteres enviados são ecoados sem perda. O eco deve ocorrer somente na fase RX; durante TX nenhum caractere deve ser ecoado ou processado. |
 
 
-### **CT5 – Alternância de recepção (RX ON/OFF)**
+# **CT3 – Teste de Transmissão (TX) durante 5 segundos**
 
-| Item                       | Descrição                                                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Observar a execução contínua do código. A cada iteração do loop principal, o RX deve alternar entre habilitado e desabilitado. |
-| **Saída esperada:**        | O log mostra alternadamente “RX is now enabled” e “RX is now disabled” a cada ciclo.                                           |
-| **Critério de Aceitação:** | A alternância ocorre corretamente a cada 5 segundos. Nenhum erro ou exceção ocorre durante a ativação ou desativação do RX.    |
-
-
-### **CT6 – Double buffering de recepção**
-
-| Item                       | Descrição                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Enviar dados continuamente durante o período RX habilitado (por exemplo, via script Python).                                  |
-| **Saída esperada:**        | O log exibe alternância entre `Providing buffer index 0` e `Providing buffer index 1` em eventos `UART_RX_BUF_REQUEST`.       |
-| **Critério de Aceitação:** | O sistema alterna corretamente entre os dois buffers (`async_rx_buffer[2]`). Nenhum dado é perdido durante a troca de buffer. |
+| Item                       | Descrição                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Deixar o sistema rodar até a fase TX. Opcionalmente tentar enviar caracteres externos durante esta fase.                                                     |
+| **Saída esperada:**        | A mensagem “Cassoli carregado\r\n” é transmitida repetidamente a cada ~200 ms. Caractere enviados externamente **não devem ser ecoados** durante a fase TX.  |
+| **Critério de Aceitação:** | A transmissão ocorre continuamente durante 5s sem falhas, congelamentos ou interrupção. Letras externas durante TX são ignoradas, confirmando isolamento RX. |
 
 
-### **CT7 – Alta taxa de entrada de caracteres**
+# **CT4 – Verificação da temporização dos ciclos (5s RX / 5s TX)**
 
-| Item                       | Descrição                                                                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Um script envia dados rapidamente (múltiplas linhas ou bytes por segundo) durante o período RX habilitado.                                                                                   |
-| **Saída esperada:**        | O sistema processa e exibe os eventos `RX_RDY` normalmente até o limite do buffer. Excedentes são descartados de forma silenciosa.                                                           |
-| **Critério de Aceitação:** | O sistema não trava nem reinicia. O ISR (`uart_callback`) deve lidar com o fluxo sem falhas. Mensagens excedentes podem ser ignoradas, mas a aplicação deve permanecer estável e responsiva. |
+| Item                       | Descrição                                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Observar o comportamento por pelo menos 3 ciclos completos (mínimo 30 segundos).                                                        |
+| **Saída esperada:**        | A alternância RX→TX→RX ocorre aproximadamente a cada 5 segundos por fase (total de ~10s por ciclo).                                     |
+| **Critério de Aceitação:** | O desvio máximo é ±0,5s. O tempo de troca entre RX e TX não deve variar visivelmente ou acumular erro ao longo dos ciclos subsequentes. |
 
 
-### **CT8 – Execução contínua e estabilidade**
+# **CT5 – Eco rápido / carga alta durante RX**
 
-| Item                       | Descrição                                                                                                |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Deixar o sistema executando continuamente por 10 minutos (ou mais) com TX/RX ativos.                     |
-| **Saída esperada:**        | O sistema mantém alternância RX/TX e gera logs regulares. Nenhum erro crítico (`ERR`) é registrado.      |
-| **Critério de Aceitação:** | A aplicação permanece funcional por todo o período. Sem travamentos, reinicializações ou falhas de UART. |
+| Item                       | Descrição                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Enviar caracteres rapidamente (sustentado ou burst), incluindo sequências longas, repetitivas e com intervalos muito curtos durante a fase RX.               |
+| **Saída esperada:**        | O sistema mantém o eco de todos os caracteres possíveis dentro da limitação natural do polling, sem travamento e sem perder fluidez.                         |
+| **Critério de Aceitação:** | Não ocorre queda de desempenho ou bloqueio. Caractere podem ser perdidos se enviadas rápido demais (limitação da UART em polling), mas sem travar o sistema. |
+
+
+# **CT6 – Transmissão contínua sem interferência com RX**
+
+| Item                       | Descrição                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Durante 5s de transmissão, enviar caracteres pelo terminal e monitorar se o RX interfere ou bagunça a transmissão.                                              |
+| **Saída esperada:**        | A transmissão continua estável e ininterrupta. Os caracteres enviados externamente não são ecoados e não afetam a ordem ou conteúdo das mensagens transmitidas. |
+| **Critério de Aceitação:** | Zero interferência mútua. O TX funciona independentemente de tentativas de RX.                                                                                  |
+
+
+# **CT7 – Estabilidade do loop infinito**
+
+| Item                       | Descrição                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Deixar o sistema operando por longos períodos (mínimo 2 minutos).                          |
+| **Saída esperada:**        | Os ciclos RX/TX continuam ocorrendo indefinidamente, sempre com 5 segundos para cada modo. |
+| **Critério de Aceitação:** | Sem travamentos, sem bloqueios na UART, sem necessidade de reinicialização manual.         |
+
 
 ---
 
