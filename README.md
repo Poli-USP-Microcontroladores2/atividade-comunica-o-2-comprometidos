@@ -474,167 +474,83 @@ Link usado como referência:
 
 ---
 
-# 🧠 **Descrição do funcionamento – Código “Async API (Transmissão/Recepção Assíncrona)”**
+O código implementa uma aplicação exemplo que demonstra o uso da **API Assíncrona de UART (Async UART API)** do **Zephyr RTOS**. Essa API permite realizar **transmissão (TX)** e **recepção (RX)** de dados pela UART de forma **não bloqueante**, utilizando **interrupções** e **eventos** em vez de chamadas síncronas. Dessa forma, o microcontrolador pode continuar executando outras tarefas enquanto as operações de comunicação são processadas em segundo plano.
 
-O código implementa uma aplicação de **comunicação UART assíncrona** utilizando o **driver UART do Zephyr RTOS**.
-Diferente do exemplo “Echo Bot” (que reage a cada byte recebido e responde imediatamente), aqui a UART trabalha de forma **não bloqueante** e **event-driven**, ou seja, **a transmissão e recepção são gerenciadas por eventos e interrupções**.
+O funcionamento do programa é dividido em **duas partes principais**: o *callback* de eventos da UART, responsável por lidar com as interrupções de TX e RX, e o laço principal (*main loop*), que realiza transmissões periódicas e alterna o estado de recepção.
 
----
 
-## ⚙️ **1. Inicialização e configuração da UART**
+### **1. Inicialização da UART e do Callback**
 
-Logo no início, o código seleciona o periférico UART padrão configurado no *Device Tree*:
+O código seleciona o dispositivo UART padrão definido no *Device Tree* (`DT_CHOSEN(zephyr_shell_uart)`) e registra uma função de *callback* responsável por tratar todos os eventos gerados pelo periférico.
+Esse *callback* (`uart_callback`) é chamado automaticamente sempre que ocorre um evento de transmissão concluída, buffer liberado, dados recebidos, entre outros.
 
-```c
-#define UART_DEVICE_NODE DT_CHOSEN(zephyr_shell_uart)
-static const struct device *const uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
-```
-
-Isso permite que o mesmo código rode em qualquer placa suportada, sem precisar alterar manualmente o nome da UART.
-
-Em seguida, o **callback assíncrono** é registrado:
+O registro é feito com:
 
 ```c
 uart_callback_set(uart_dev, uart_callback, (void *)uart_dev);
 ```
 
-Esse callback (`uart_callback`) é responsável por tratar **todos os eventos da UART**, como:
 
-* **UART_TX_DONE** → transmissão concluída;
-* **UART_RX_RDY** → novos dados recebidos;
-* **UART_RX_BUF_REQUEST** → o driver solicita um novo buffer de recepção;
-* **UART_RX_DISABLED** → recepção foi desligada.
+### **2. Envio Assíncrono de Dados (Transmissão - TX)**
 
----
+No *loop principal*, o programa aguarda 5 segundos entre cada iteração e, em seguida, gera um número aleatório de pacotes (de 1 a 4).
+Cada pacote contém uma pequena mensagem de texto com o número do loop e do pacote, por exemplo:
 
-## 📡 **2. Estrutura geral de funcionamento**
-
-O código é construído em torno de um **loop principal (`while (1)`)**, que faz o seguinte a cada iteração:
-
-1. **Aguarda 5 segundos**
-
-   ```c
-   k_sleep(K_SECONDS(5));
-   ```
-
-   Simula um intervalo entre transmissões.
-
-2. **Gera e transmite pacotes aleatórios**
-   O programa cria entre **1 e 4 pacotes** por iteração:
-
-   ```c
-   num_tx = (sys_rand32_get() % LOOP_ITER_MAX_TX) + 1;
-   ```
-
-   Cada pacote contém um texto como:
-
-   ```
-   Loop 3: Packet 2
-   ```
-
-   e é armazenado em um **buffer da pool `tx_pool`**.
-
-3. **Transmite pacotes de forma assíncrona**
-   A função `uart_tx()` envia o conteúdo sem bloquear a execução:
-
-   * Se a UART estiver livre, o pacote é transmitido imediatamente.
-   * Se a UART estiver ocupada (`-EBUSY`), o pacote é colocado em uma fila (`k_fifo tx_queue`) e enviado assim que o evento `UART_TX_DONE` liberar o canal.
-
-4. **Alterna o estado de recepção RX**
-   A cada ciclo, o RX é ativado ou desativado:
-
-   ```c
-   if (rx_enabled) {
-       uart_rx_disable(uart_dev);
-   } else {
-       uart_rx_enable(uart_dev, async_rx_buffer[0], RX_CHUNK_LEN, 100);
-   }
-   ```
-
-   Isso demonstra o controle dinâmico da recepção, útil em aplicações que economizam energia.
-
----
-
-## 📬 **3. Mecanismo de recepção assíncrona**
-
-A recepção é baseada em **buffers duplos (double-buffering)**:
-
-```c
-uint8_t async_rx_buffer[2][RX_CHUNK_LEN];
+```
+Loop 3: Packet 1
 ```
 
-O driver UART solicita buffers quando precisa (evento `UART_RX_BUF_REQUEST`):
+Esses pacotes são armazenados em buffers da pool `tx_pool` e transmitidos usando a função **`uart_tx()`**, que inicia a transmissão de forma assíncrona.
+Caso a UART esteja ocupada no momento do envio, o pacote é colocado em uma fila (`k_fifo tx_queue`) e será transmitido automaticamente quando o evento `UART_TX_DONE` indicar que o canal está livre.
+
+Ao final de cada transmissão, o evento `UART_TX_DONE` é acionado dentro do *callback*, liberando o buffer e enviando o próximo pacote da fila, se houver.
+Esse mecanismo garante que a transmissão ocorra de forma **contínua e não bloqueante**, sem perda de dados e sem travar a execução principal do sistema.
+
+
+### **3. Recepção Assíncrona de Dados (RX)**
+
+A recepção é configurada para operar de forma assíncrona e alterna entre dois buffers (`async_rx_buffer[2][RX_CHUNK_LEN]`), implementando o conceito de **duplo buffer**.
+Quando o driver UART precisa de um novo buffer para armazenar os dados recebidos, ele aciona o evento `UART_RX_BUF_REQUEST`, e o código responde com:
 
 ```c
 uart_rx_buf_rsp(dev, async_rx_buffer[async_rx_buffer_idx], sizeof(async_rx_buffer[0]));
 ```
 
-Enquanto um buffer está sendo preenchido, o outro é preparado para uso — isso garante **nenhuma perda de dados** mesmo em transmissões contínuas.
+Isso permite que a recepção continue sem interrupções enquanto o outro buffer é processado.
 
-Quando novos dados chegam, o evento `UART_RX_RDY` é disparado:
+Os dados recebidos são reportados no evento `UART_RX_RDY`, no qual o programa exibe o conteúdo recebido em formato hexadecimal no log:
 
 ```c
 LOG_HEXDUMP_INF(evt->data.rx.buf + evt->data.rx.offset, evt->data.rx.len, "RX_RDY");
 ```
 
-O código imprime o conteúdo recebido no log, em formato hexadecimal.
 
----
+### **4. Alternância entre TX e RX**
 
-## 🚀 **4. Tratamento de eventos de transmissão**
+Uma característica central desse exemplo é a **alternância entre os modos de transmissão e recepção**.
+A cada iteração do *loop principal*, após enviar os pacotes, o código alterna o estado da UART:
 
-Quando um envio termina (`UART_TX_DONE`):
+* Se a recepção estava habilitada, ela é desativada com `uart_rx_disable(uart_dev);`
+* Caso contrário, ela é habilitada novamente com `uart_rx_enable(uart_dev, async_rx_buffer[0], RX_CHUNK_LEN, 100);`
 
-1. O buffer utilizado é liberado:
+Essa alternância periódica demonstra o uso dinâmico da API assíncrona, simulando cenários onde o dispositivo precisa **alternar entre enviar e receber dados** em momentos diferentes, mantendo a flexibilidade e o controle total da comunicação serial.
 
-   ```c
-   net_buf_unref(tx_pending_buffer);
-   ```
-2. Se houver pacotes na fila (`tx_queue`), o próximo é imediatamente transmitido:
 
-   ```c
-   buf = k_fifo_get(&tx_queue, K_NO_WAIT);
-   uart_tx(dev, buf->data, buf->len, 0);
-   ```
+### **5. Comportamento Esperado**
 
-Esse mecanismo garante **transmissão contínua sem bloqueio**, mesmo quando múltiplos pacotes são enfileirados.
+Durante a execução, o programa deve:
 
----
+* A cada 5 segundos, **enviar de 1 a 4 mensagens UART** formatadas como “Loop X: Packet Y”;
+* Alternar o estado da recepção a cada ciclo (ativar/desativar RX);
+* Exibir logs informando transmissões, ativações e dados recebidos;
+* Manter a **fila de transmissão e buffers RX operando corretamente**, sem travamentos ou perda de dados.
 
-## 🧩 **5. Recursos e estruturas do Zephyr utilizados**
 
-| Componente                       | Função                                                         |
-| -------------------------------- | -------------------------------------------------------------- |
-| `NET_BUF_POOL_DEFINE`            | Cria um pool de buffers de memória para os pacotes TX.         |
-| `k_fifo`                         | Fila usada para armazenar pacotes aguardando transmissão.      |
-| `uart_callback_set()`            | Registra função de callback para eventos UART.                 |
-| `uart_tx()` / `uart_rx_enable()` | Funções assíncronas de transmissão e recepção.                 |
-| `LOG_INF` / `LOG_DBG`            | Sistema de logs do Zephyr (níveis de debug e informação).      |
-| `sys_rand32_get()`               | Gera número aleatório (para simular variabilidade de pacotes). |
+### **6. Conclusão**
 
----
-
-## 🧾 **6. Resumo do comportamento**
-
-| Etapa          | Ação                                              |
-| -------------- | ------------------------------------------------- |
-| Inicialização  | UART configurada e callback registrado            |
-| Loop principal | Envia pacotes aleatórios e alterna o RX           |
-| Transmissão    | Feita de forma assíncrona e enfileirada           |
-| Recepção       | Duplo buffer evita perda de dados                 |
-| Logs           | Mostram TX, RX e status do sistema periodicamente |
-
----
-
-## ✅ **7. Conclusão**
-
-Esse exemplo demonstra um uso **robusto e eficiente da UART assíncrona no Zephyr**, ideal para aplicações em que:
-
-* há **transmissões periódicas ou simultâneas**;
-* é necessário **lidar com alto volume de dados** sem bloquear tarefas;
-* o sistema deve **manter responsividade** durante a comunicação serial.
-
-O uso de buffers, filas e interrupções permite **comunicação full-duplex**, escalável e com mínimo consumo de CPU — uma arquitetura típica de sistemas embarcados modernos.
+Esse exemplo demonstra o uso prático da **API Assíncrona da UART no Zephyr**, evidenciando como é possível implementar uma comunicação **full-duplex, eficiente e não bloqueante** entre sistemas embarcados.
+O mecanismo de **eventos e buffers duplos** garante que transmissões e recepções possam ocorrer de forma simultânea, controlada e segura, sem a necessidade de *polling* ou espera ativa.
+A alternância periódica entre TX e RX reforça o uso flexível da UART, útil em aplicações como sistemas de telemetria, gateways de comunicação e protocolos seriais bidirecionais.
 
 ---
 
