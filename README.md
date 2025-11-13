@@ -556,13 +556,80 @@ A alternância periódica entre TX e RX reforça o uso flexível da UART, útil 
 
 ## 4.2 Casos de Teste Planejados (TDD)
 
-### CT1 – Transmissão de pacotes a cada 5s
 
-### CT2 – Recepção
+### **CT1 – Transmissão de pacotes a cada 5 segundos**
 
-### CT3 – Verificação de timing dos 5s
+| Item                       | Descrição                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | O sistema inicia a execução normalmente. Nenhum dado é enviado pela UART externa.                                                            |
+| **Saída esperada:**        | A cada 5 segundos, o log exibe mensagens no formato `Loop X: Sending N packets`, seguidas por `Loop X: Packet: Y`.                           |
+| **Critério de Aceitação:** | O intervalo entre ciclos é aproximadamente 5 segundos (±0,5s). Cada pacote é transmitido sem erro. Nenhum travamento ou erro de UART ocorre. |
 
-(Adicionar mais casos se necessário.)
+
+### **CT2 – Recepção de dados (RX habilitado)**
+
+| Item                       | Descrição                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Durante o período em que o log mostra “RX is now enabled”, o usuário envia caracteres ou strings via terminal serial.                        |
+| **Saída esperada:**        | O log exibe eventos `RX_RDY` com *hexdumps* dos dados recebidos.                                                                             |
+| **Critério de Aceitação:** | Todos os bytes enviados devem aparecer nos *logs* sem perda. Caso RX esteja desativado, nada é recebido. Nenhum erro de buffer deve ocorrer. |
+
+
+### **CT3 – Verificação de temporização de 5s**
+
+| Item                       | Descrição                                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Monitorar o log de saída do sistema por pelo menos 3 iterações consecutivas.                                                                           |
+| **Saída esperada:**        | A diferença de tempo entre as mensagens “Loop X” e “Loop X+1” é de aproximadamente 5 segundos.                                                         |
+| **Critério de Aceitação:** | O temporizador `k_sleep(K_SECONDS(5))` deve ser respeitado. Tolerância de ±0,5 segundos. O sistema não deve adiantar nem atrasar de forma perceptível. |
+
+
+### **CT4 – Fila de transmissão cheia (EBUSY)**
+
+| Item                       | Descrição                                                                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Reduzir o tempo de espera (para testes) ou aumentar o número de pacotes transmitidos (`LOOP_ITER_MAX_TX`) de forma que novas transmissões ocorram antes da anterior terminar. |
+| **Saída esperada:**        | Quando a UART estiver ocupada, o log exibe `Queuing buffer <ptr>`. Após o evento `TX_DONE`, os buffers enfileirados são enviados automaticamente.                             |
+| **Critério de Aceitação:** | Nenhum pacote é perdido. A fila `k_fifo` é processada corretamente após cada `TX_DONE`. O sistema continua operando normalmente, sem travar nem perder dados.                 |
+
+
+### **CT5 – Alternância de recepção (RX ON/OFF)**
+
+| Item                       | Descrição                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Observar a execução contínua do código. A cada iteração do loop principal, o RX deve alternar entre habilitado e desabilitado. |
+| **Saída esperada:**        | O log mostra alternadamente “RX is now enabled” e “RX is now disabled” a cada ciclo.                                           |
+| **Critério de Aceitação:** | A alternância ocorre corretamente a cada 5 segundos. Nenhum erro ou exceção ocorre durante a ativação ou desativação do RX.    |
+
+
+### **CT6 – Double buffering de recepção**
+
+| Item                       | Descrição                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Enviar dados continuamente durante o período RX habilitado (por exemplo, via script Python).                                  |
+| **Saída esperada:**        | O log exibe alternância entre `Providing buffer index 0` e `Providing buffer index 1` em eventos `UART_RX_BUF_REQUEST`.       |
+| **Critério de Aceitação:** | O sistema alterna corretamente entre os dois buffers (`async_rx_buffer[2]`). Nenhum dado é perdido durante a troca de buffer. |
+
+
+### **CT7 – Alta taxa de entrada de caracteres**
+
+| Item                       | Descrição                                                                                                                                                                                    |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Um script envia dados rapidamente (múltiplas linhas ou bytes por segundo) durante o período RX habilitado.                                                                                   |
+| **Saída esperada:**        | O sistema processa e exibe os eventos `RX_RDY` normalmente até o limite do buffer. Excedentes são descartados de forma silenciosa.                                                           |
+| **Critério de Aceitação:** | O sistema não trava nem reinicia. O ISR (`uart_callback`) deve lidar com o fluxo sem falhas. Mensagens excedentes podem ser ignoradas, mas a aplicação deve permanecer estável e responsiva. |
+
+
+### **CT8 – Execução contínua e estabilidade**
+
+| Item                       | Descrição                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Deixar o sistema executando continuamente por 10 minutos (ou mais) com TX/RX ativos.                     |
+| **Saída esperada:**        | O sistema mantém alternância RX/TX e gera logs regulares. Nenhum erro crítico (`ERR`) é registrado.      |
+| **Critério de Aceitação:** | A aplicação permanece funcional por todo o período. Sem travamentos, reinicializações ou falhas de UART. |
+
+---
+
 
 ## 4.3 Implementação
 
