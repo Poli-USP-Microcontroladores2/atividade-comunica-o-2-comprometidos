@@ -59,7 +59,7 @@ Durante o funcionamento:
 
 ### **Fluxo de Execução Esperado**
 
-#### **1. Inicialização**
+#### **1 - Inicialização**
 
 1. O código obtém o *device handle* da UART configurada como `zephyr_shell_uart` no *Device Tree*.
 2. Ele verifica se o dispositivo está pronto com `device_is_ready()`.
@@ -79,7 +79,7 @@ Durante o funcionamento:
    ```
 
 
-#### **2. Recepção de dados (Interrupção via `serial_cb`)**
+#### **2 - Recepção de dados (Interrupção via `serial_cb`)**
 
 A função `serial_cb()` é chamada automaticamente sempre que a UART recebe dados.
 
@@ -96,7 +96,7 @@ Comportamento detalhado:
 * Se a fila estiver cheia (10 mensagens pendentes), novas mensagens são descartadas silenciosamente.
 
 
-#### **3. Fila de mensagens (`k_msgq`)**
+#### **3 - Fila de mensagens (`k_msgq`)**
 
 A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt callback* e a *thread principal* (`main()`).
 
@@ -107,7 +107,7 @@ A `k_msgq` é uma fila do Zephyr usada para comunicação entre a *interrupt cal
 Ela permite que a função principal espere por mensagens novas **sem bloquear o recebimento de interrupções**.
 
 
-#### **4. Loop principal (`main`)**
+#### **4 - Loop principal (`main`)**
 
 A função `main()` entra em um loop infinito:
 
@@ -130,7 +130,7 @@ Comportamento esperado:
 3. Repete o ciclo para a próxima entrada.
 
 
-#### **5. Envio de dados (`print_uart`)**
+#### **5 - Envio de dados (`print_uart`)**
 
 A função `print_uart()` envia cada caractere da string informada usando `uart_poll_out()` — um método **bloqueante**, mas simples.
 
