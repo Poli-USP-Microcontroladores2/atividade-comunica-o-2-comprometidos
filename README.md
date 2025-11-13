@@ -358,7 +358,7 @@ Esse guia fornece as instruções necessárias para **instalar o ambiente de des
      Tell me something and press enter:
      ```
 
-   * A comunicação UART foi então monitorada por meio de um terminal serial (como PuTTY, Tera Term ou o VSCode Serial Monitor), configurado com:
+   * A comunicação UART foi então monitorada por meio do um terminal serial do VSCode, configurado com:
 
      * Porta: COM3
      * Baud rate: 115200 bps
