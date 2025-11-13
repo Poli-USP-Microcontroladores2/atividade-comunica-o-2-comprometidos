@@ -298,7 +298,7 @@ Esse guia fornece as instruções necessárias para **instalar o ambiente de des
 
      ```powershell
      python -m venv zephyrproject\.venv
-     zephyrproject\.venv\Scripts\activate.bat
+     zephyrproject\.venv\Scripts\Activate.ps1
      ```
    * Com o ambiente ativo, instalou-se o gerenciador de projetos Zephyr:
 
@@ -345,7 +345,7 @@ Esse guia fornece as instruções necessárias para **instalar o ambiente de des
    * Com a placa conectada via USB e o **LinkServer** instalado, o código foi gravado na placa:
 
      ```powershell
-     west flash --runner=linkserver
+     west flash
      ```
    * Esse processo compila o binário, identifica automaticamente a interface de programação e transfere o firmware para a placa.
 
@@ -360,7 +360,7 @@ Esse guia fornece as instruções necessárias para **instalar o ambiente de des
 
    * A comunicação UART foi então monitorada por meio de um terminal serial (como PuTTY, Tera Term ou o VSCode Serial Monitor), configurado com:
 
-     * Porta: COMx (geralmente COM3 ou COM4)
+     * Porta: COM3
      * Baud rate: 115200 bps
      * 8 data bits, sem paridade, 1 stop bit (8N1)
 
@@ -634,6 +634,11 @@ A alternância periódica entre TX e RX reforça o uso flexível da UART, útil 
 ## 4.3 Implementação
 
 A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação).
+Difererindo na compilação que foi utilizado
+
+     ```powershell
+     west build -p always -b frdm_kl25z samples/drivers/uart/async_api
+     ```
 
 ## 4.4 Evidências de Funcionamento
 
