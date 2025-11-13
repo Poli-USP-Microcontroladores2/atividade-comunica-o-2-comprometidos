@@ -284,8 +284,105 @@ O ciclo continua indefinidamente.
 
 ## 3.3 Implementação
 
-* Arquivo(s) modificados:
-* Justificativa das alterações:
+Não foi realizada nenhuma alteração no código-fonte do *Echo Bot UART*, já que o exemplo utilizado faz parte dos **samples oficiais do Zephyr Project** e já vem pronto para uso. A implementação foi executada exatamente conforme disponibilizada em `samples/drivers/uart/echo_bot`.
+
+Em vez de executar o código pelo PlatformIO no VSCode, seguiu-se o procedimento oficial descrito no tutorial **“Getting Started Guide”** da documentação do Zephyr.
+Esse guia fornece as instruções necessárias para **instalar o ambiente de desenvolvimento, configurar o SDK e o gerenciador de builds (west)**, bem como **compilar, gravar e executar aplicações de exemplo em placas de desenvolvimento compatíveis**, como a **FRDM-KL25Z**.
+
+
+### 🧩 **Etapas do processo (baseadas no Getting Started Guide)**
+
+1. **Configuração do ambiente:**
+
+   * Foi configurado um ambiente de desenvolvimento Python virtual (`.venv`) dentro da pasta `zephyrproject`, utilizando:
+
+     ```powershell
+     python -m venv zephyrproject\.venv
+     zephyrproject\.venv\Scripts\activate.bat
+     ```
+   * Com o ambiente ativo, instalou-se o gerenciador de projetos Zephyr:
+
+     ```powershell
+     pip install west
+     ```
+
+2. **Obtenção do código-fonte do Zephyr:**
+
+   * O Zephyr foi inicializado e clonado com seus módulos:
+
+     ```powershell
+     west init zephyrproject
+     cd zephyrproject
+     west update
+     west zephyr-export
+     ```
+   * Foram instaladas as dependências Python do Zephyr:
+
+     ```powershell
+     west packages pip --install
+     ```
+
+3. **Instalação do SDK:**
+
+   * O Zephyr SDK foi instalado usando o próprio comando do *west*, que inclui as toolchains necessárias (compilador, assembler e linker):
+
+     ```powershell
+     cd zephyr
+     west sdk install
+     ```
+
+4. **Compilação do exemplo Echo Bot:**
+
+   * O projeto foi compilado para a placa **FRDM-KL25Z**, utilizando o comando:
+
+     ```powershell
+     west build -p always -b frdm_kl25z samples/drivers/uart/echo_bot
+     ```
+   * O parâmetro `-p always` força uma compilação limpa (*pristine build*), garantindo que não haja resíduos de builds anteriores.
+
+5. **Gravação (flash) do firmware:**
+
+   * Com a placa conectada via USB e o **LinkServer** instalado, o código foi gravado na placa:
+
+     ```powershell
+     west flash --runner=linkserver
+     ```
+   * Esse processo compila o binário, identifica automaticamente a interface de programação e transfere o firmware para a placa.
+
+6. **Execução e monitoramento serial:**
+
+   * Após o upload, o dispositivo inicia automaticamente e exibe a mensagem de boas-vindas:
+
+     ```
+     Hello! I'm your echo bot.
+     Tell me something and press enter:
+     ```
+
+   * A comunicação UART foi então monitorada por meio de um terminal serial (como PuTTY, Tera Term ou o VSCode Serial Monitor), configurado com:
+
+     * Porta: COMx (geralmente COM3 ou COM4)
+     * Baud rate: 115200 bps
+     * 8 data bits, sem paridade, 1 stop bit (8N1)
+
+   * Ao enviar qualquer texto seguido de **Enter**, o dispositivo responde com o eco:
+
+     ```
+     Echo: <mensagem digitada>
+     ```
+
+
+### 💡 **Resumo do comportamento**
+
+O *Echo Bot UART* utiliza a API de interrupção da UART para **receber dados de forma assíncrona** e a API de polling para **enviar os dados de volta ao console**.
+Cada linha digitada e finalizada com *Enter* é armazenada em uma fila (`k_msgq`) e posteriormente reenviada pelo firmware, simulando o comportamento de um "bot" que repete o que o usuário digita.
+
+
+### ✅ **Conclusão**
+
+O exemplo foi executado com sucesso seguindo o procedimento do **Getting Started Guide**, sem necessidade de alterações no código.
+O processo demonstrou corretamente o funcionamento da comunicação UART no Zephyr, com envio e recepção de mensagens de texto através da placa FRDM-KL25Z.
+
+---
 
 ## 3.4 Evidências de Funcionamento
 
