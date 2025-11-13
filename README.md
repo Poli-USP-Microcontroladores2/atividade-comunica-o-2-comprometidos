@@ -637,9 +637,9 @@ A implementação seguiu o mesmo procedimento adotado na atividade anterior [Ite
 
 Difererindo no comando de compilação, no qual foi utilizado:
 
-    ```powershell
-   west build -p always -b frdm_kl25z samples/drivers/uart/async_api
-    ```
+```powershell
+west build -p always -b frdm_kl25z samples/drivers/uart/async_api
+```
 
 ## 4.4 Evidências de Funcionamento
 
