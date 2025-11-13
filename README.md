@@ -502,6 +502,8 @@ Link usado como referência:
 
 ---
 
+### Descrição do Comportamento Esperado – Async API
+
 O código implementa uma aplicação exemplo que demonstra o uso da **API Assíncrona de UART (Async UART API)** do **Zephyr RTOS**. Essa API permite realizar **transmissão (TX)** e **recepção (RX)** de dados pela UART de forma **não bloqueante**, utilizando **interrupções** e **eventos** em vez de chamadas síncronas. Dessa forma, o microcontrolador pode continuar executando outras tarefas enquanto as operações de comunicação são processadas em segundo plano.
 
 O funcionamento do programa é dividido em **duas partes principais**: o *callback* de eventos da UART, responsável por lidar com as interrupções de TX e RX, e o laço principal (*main loop*), que realiza transmissões periódicas e alterna o estado de recepção.
