@@ -739,7 +739,7 @@ main -> main: "Loop reinicia (while 1)"
 
 ### **Diagrama**
 
-![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg)
+
 
 ---
 
