@@ -460,6 +460,8 @@ Todas as evidências disponíveis em [docs/evidence/etapa1_echobot_uart_pollingI
 
 Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/)
 
+### **Código base D2**
+
 ```
 shape: sequence_diagram
 
@@ -488,6 +490,7 @@ loop "aguarda entrada do usuário"
     end
 end
 ```
+### **Diagrama**
 
 ![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
 
@@ -699,6 +702,8 @@ Data (ASCII): Hello
 
 Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/)
 
+### **Código base D2**
+
 ```
 shape: sequence_diagram
 
@@ -738,6 +743,8 @@ note over UART_Driver: Dados RX recebidos
 UART_Hardware -> UART_Driver: UART_TX_DONE
 note over UART_Driver: Libera buffer TX e processa fila
 ```
+
+### **Diagrama**
 
 ![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg)
 
