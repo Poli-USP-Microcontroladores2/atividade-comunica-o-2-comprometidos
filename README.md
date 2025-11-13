@@ -444,7 +444,7 @@ Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingI
 
 [Link para script python utilizado para alta taxa de entrada](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/script_ct7.py)
 
-[Link para CT7 – Alta taxa de entrada de caracteres](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/log_ct7.txt)
+[Link para log CT7 – Alta taxa de entrada de caracteres](docs/evidence/etapa1_echobot_uart_pollingInterrupt/ct7_alta_taxa_de_entrada_de_caracteres/log_ct7.txt)
 
 ---
 
@@ -457,8 +457,6 @@ Todas as evidências disponíveis em `docs/evidence/etapa1_echobot_uart_pollingI
 ---
 
 ## 3.5 Diagramas de Sequência D2
-
-Vide material de apoio: https://d2lang.com/tour/sequence-diagrams/
 
 ```
 shape: sequence_diagram
