@@ -1,0 +1,13 @@
+*** Booting Zephyr OS build v4.3.0-rc3-14-g13daf245a801 ***
+Modo RX: Acumulando mensagens por 5s...
+Modo TX: Esvaziando fila... (Próximo RX em 5s)
+--- Reiniciando ciclo ---
+Modo RX: Acumulando mensagens por 5s...
+Modo TX: Esvaziando fila... (Próximo RX em 5s)
+--- Reiniciando ciclo ---
+Modo RX: Acumulando mensagens por 5s...
+Modo TX: Esvaziando fila... (Próximo RX em 5s)
+--- Reiniciando ciclo ---
+Modo RX: Acumulando mensagens por 5s...
+Modo TX: Esvaziando fila... (Pr��ximo RX em 5s)
+--- Reiniciando ciclo ---

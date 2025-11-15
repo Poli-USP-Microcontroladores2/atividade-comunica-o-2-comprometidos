@@ -496,7 +496,7 @@ end
 
 ---
 
-# 4. Etapa 2 – Async API (Transmissão/Recepção Assíncrona)
+# 4. Etapa 2 – Bot Cíclico RX/TX
 
 ## 4.1 Descrição do Funcionamento
 

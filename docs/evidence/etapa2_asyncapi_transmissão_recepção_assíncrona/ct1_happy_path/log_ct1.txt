@@ -1,0 +1,7 @@
+*** Booting Zephyr OS build v4.3.0-rc3-14-g13daf245a801 ***
+Modo RX: Acumulando mensagens por 5s...
+---- Sent utf8 encoded message: "teste 1\r" ----
+---- Sent utf8 encoded message: "teste 2\r" ----
+Modo TX: Esvaziando fila... (Próximo RX em 5s)
+Eco: teste 1
+Eco: teste 2
