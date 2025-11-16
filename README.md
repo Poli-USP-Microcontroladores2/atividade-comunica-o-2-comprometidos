@@ -505,99 +505,107 @@ Link usado como referência:
 [https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html](https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html)
 
 
-### Descrição textual do comportamento esperado (ciclo TX/RX)
+### Descrição Textual do Comportamento (Ciclo RX/TX com Interrupção e Fila)
 
-O programa implementa um ciclo contínuo que alterna entre períodos de recepção (RX) e períodos de transmissão (TX) da UART, cada um com duração de 5 segundos. O objetivo é verificar se esse ciclo funciona corretamente quando não existem chamadas a `printk()` dentro do loop principal, evitando interferência com `uart_poll_out()`, que também utiliza o periférico UART.
+O programa implementa um ciclo contínuo que alterna entre um período de "acúmulo" de mensagens (RX) e um período de "processamento" e envio (TX), cada um com duração de 5 segundos.
 
+A **recepção (RX)** é assíncrona, baseada em **interrupções**, e armazena mensagens em uma fila (`k_msgq`). A **transmissão (TX)** é síncrona, baseada em **polling** (`uart_poll_out`), e consome as mensagens dessa fila.
+
+O objetivo é garantir que essa arquitetura híbrida funcione, processando dados em lotes e descartando ativamente as mensagens recebidas durante o período de TX.
+
+---
 
 #### 1. Inicialização
 
 * O código obtém o dispositivo UART definido por `zephyr_shell_uart`.
 * Verifica se o dispositivo está pronto.
-* Não é configurado nenhum mecanismo de interrupção; toda a comunicação ocorre em modo polling (para RX e TX).
+* **Configura a interrupção de RX:** A função `serial_cb` é registrada como o *callback* da interrupção da UART.
+* **Habilita a interrupção de RX:** A interrupção (`uart_irq_rx_enable`) é ativada permanentemente. A partir deste ponto, `serial_cb` é executado automaticamente em segundo plano sempre que dados chegam à UART.
 
+---
 
-#### 2. Loop principal (executado indefinidamente)
+#### 2. Loop Principal (executado indefinidamente)
 
 Dentro do `while (1)`, duas fases acontecem sequencialmente:
 
+##### Etapa 1 — Acúmulo (RX) por 5 segundos
 
-### Etapa 1 — Recepção (RX) por 5 segundos
+###### Comportamento da Thread Principal
 
-##### Comportamento da função `poll_receive()`
+1.  Primeiro, a função **`k_msgq_purge()` é chamada para limpar a fila**, descartando quaisquer mensagens que a ISR possa ter coletado durante a Etapa 2 anterior.
+2.  A thread principal imprime "Modo RX: Acumulando mensagens..."
+3.  A thread principal então **dorme por 5 segundos** (`k_sleep(K_SECONDS(5))`), cedendo o controle da CPU.
 
-Durante 5 segundos:
+###### Comportamento da Interrupção (ISR) em Segundo Plano
 
-1. O programa chama repetidamente `uart_poll_in()` para tentar ler um byte.
-2. Se um caractere for recebido:
+* Durante esses 5 segundos (e em todos os outros momentos), a ISR `serial_cb` está ativa.
+* Quando o usuário digita e pressiona Enter (`\n` ou `\r`), a ISR `serial_cb` detecta o fim da linha.
+* Ela finaliza a string e a coloca na fila `uart_msgq` usando `k_msgq_put()`.
 
-   * Se ele não for `'\r'`, é transmitido de volta usando `uart_poll_out()`, funcionando como um echo simples.
-3. A função chama `k_msleep(1)` a cada iteração, para:
+###### Resultado esperado
 
-   * evitar uso excessivo da CPU,
-   * permitir escalonamento de outras threads pelo RTOS,
-   * manter uma temporização mais estável.
+* Ao final dos 5 segundos de sono da thread principal, a fila `uart_msgq` contém todas as linhas completas que o usuário digitou durante esse período.
 
-##### Resultado esperado
+---
 
-* Qualquer caractere enviado pela outra ponta da UART é imediatamente devolvido (ecoado).
-* Se nada for recebido durante os 5 segundos, nada é transmitido.
+##### Etapa 2 — Processamento (TX) por 5 segundos
 
+###### Comportamento da Thread Principal
 
-### Etapa 2 — Transmissão (TX) por 5 segundos
+1.  A thread principal acorda do seu sono de 5 segundos.
+2.  Ela imprime "Modo TX: Esvaziando fila...".
+3.  Ela entra em um loop `while (k_msgq_get(..., K_NO_WAIT) == 0)`, que **esvazia a fila** o mais rápido possível.
+4.  Para cada mensagem retirada da fila, ela é imediatamente impressa de volta na UART usando `print_uart()` (que chama `uart_poll_out`), prefixada com "Eco: ".
+5.  Assim que a fila está vazia (o loop `while` termina), a thread principal **dorme por mais 5 segundos**.
 
-##### Comportamento da função `poll_transmit()`
+###### Comportamento da Interrupção (ISR) em Segundo Plano
 
-Durante 5 segundos:
+* Enquanto a thread principal está esvaziando a fila e dormindo seus 5 segundos, a ISR `serial_cb` **continua recebendo dados** e enchendo a `uart_msgq`.
+* Essas mensagens (recebidas durante a Etapa 2) são consideradas "indesejadas" por esta lógica.
 
-1. A função transmite repetidamente a mensagem:
+###### Resultado esperado
 
-   ```
-   Cassoli carregado\r\n
-   ```
-2. A transmissão é feita caractere por caractere usando `uart_poll_out()`.
-3. Após cada envio completo, a função espera 200 ms antes de transmitir novamente.
+* O terminal exibe imediatamente todos os "Ecos" das mensagens coletadas na Etapa 1.
+* Mensagens enviadas pelo usuário *durante* esta fase são recebidas pela ISR, mas serão apagadas pelo `k_msgq_purge` no início da próxima Etapa 1.
 
-##### Resultado esperado
+---
 
-* Durante todo o período de TX, a UART envia a mensagem "Cassoli carregado" várias vezes por segundo.
-* O intervalo entre cada mensagem é de aproximadamente 200 ms.
-
-
-### Alternância do ciclo
+### Alternância do Ciclo
 
 O comportamento total é o seguinte:
 
-1. Recepção por 5 segundos
-   – A UART fica lendo caracteres e ecoa tudo o que chega.
+1.  **Acúmulo (RX) por 5s:**
+    * Fila é limpa.
+    * Thread `main` dorme.
+    * ISR `serial_cb` enche a fila com mensagens válidas.
+2.  **Processamento (TX) por 5s:**
+    * Thread `main` acorda, esvazia a fila (imprimindo "Eco: ...").
+    * Thread `main` dorme novamente.
+    * ISR `serial_cb` continua enchendo a fila (com mensagens "indesejadas").
+3.  **Retorno ao estado de acúmulo:**
+    * O ciclo se repete, e o `k_msgq_purge` inicial descarta as mensagens "indesejadas".
 
-2. Transmissão por 5 segundos
-   – A UART envia repetidamente a mensagem "Cassoli carregado".
+---
 
-3. Retorno ao estado de recepção
-   – O ciclo se repete continuamente.
+### Objetivo do Teste
 
+O objetivo é garantir que a alternância RX/TX funciona corretamente usando uma arquitetura de *buffer* (fila):
 
-### Objetivo do teste
+* Garantir que a recepção por interrupção (assíncrona) não é perdida enquanto a thread principal está ocupada ou dormindo.
+* Verificar que a lógica de "limpar" a fila (`k_msgq_purge`) descarta com sucesso as mensagens recebidas fora da janela de "Acúmulo".
+* Evitar conflito com `printk()`, substituindo-o por uma função `print_uart` customizada que usa apenas `uart_poll_out`.
 
-O objetivo é garantir que a alternância RX/TX funciona corretamente quando:
+---
 
-* Nenhuma chamada a `printk()` ocorre dentro do loop principal.
-* Apenas `uart_poll_in()` e `uart_poll_out()` acessam o periférico UART.
-* Evita-se conflito com `printk()`, que também utiliza o mesmo hardware UART.
+### Resumo Geral
 
-Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `printk()` pode interferir com `uart_poll_out()`, causando falhas ou travamentos. Ao remover `printk()` do loop principal, o teste verifica se o comportamento do ciclo fica estável.
-
-
-### Resumo geral
-
-| Intervalo (segundos) | Modo | Comportamento                           |
-| -------------------- | ---- | --------------------------------------- |
-| 0–5                  | RX   | Echo simples do que chega               |
-| 5–10                 | TX   | Envia "Cassoli carregado" repetidamente |
-| 10–15                | RX   | Retorna ao modo echo                    |
-| 15–20                | TX   | Envia novamente a mensagem              |
-| ...                  | ...  | Continua alternando indefinidamente     |
+| Intervalo (segundos) | Modo | Comportamento da Thread Principal | Comportamento da ISR (Fundo) |
+| :--- | :--- | :--- | :--- |
+| 0–5 | **RX (Acúmulo)** | Limpa a fila e dorme por 5s. | Enche a fila com msgs **válidas**. |
+| 5–10 | **TX (Processamento)** | Esvazia a fila (imprime Ecos), depois dorme por 5s. | Enche a fila com msgs **indesejadas**. |
+| 10–15 | **RX (Acúmulo)** | Limpa a fila (descarta msgs indesejadas) e dorme 5s. | Enche a fila com novas msgs **válidas**. |
+| 15–20 | **TX (Processamento)** | Esvazia a fila (imprime Ecos), depois dorme 5s. | Enche a fila com msgs **indesejadas**. |
+| ... | ... | Continua alternando indefinidamente. | Sempre recebendo. |
 
 
 ---
