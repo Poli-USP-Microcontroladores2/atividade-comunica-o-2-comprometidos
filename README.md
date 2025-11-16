@@ -504,170 +504,181 @@ Descrever o comportamento esperado de forma textual, especialmente com a altern�
 Link usado como referência:
 [https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html](https://docs.zephyrproject.org/latest/samples/drivers/uart/async_api/README.html)
 
----
 
-### Descrição do Comportamento Esperado – Async API
+### Descrição textual do comportamento esperado (ciclo TX/RX)
 
-O código implementa uma aplicação exemplo que demonstra o uso da **API Assíncrona de UART (Async UART API)** do **Zephyr RTOS**. Essa API permite realizar **transmissão (TX)** e **recepção (RX)** de dados pela UART de forma **não bloqueante**, utilizando **interrupções** e **eventos** em vez de chamadas síncronas. Dessa forma, o microcontrolador pode continuar executando outras tarefas enquanto as operações de comunicação são processadas em segundo plano.
-
-O funcionamento do programa é dividido em **duas partes principais**: o *callback* de eventos da UART, responsável por lidar com as interrupções de TX e RX, e o laço principal (*main loop*), que realiza transmissões periódicas e alterna o estado de recepção.
+O programa implementa um ciclo contínuo que alterna entre períodos de recepção (RX) e períodos de transmissão (TX) da UART, cada um com duração de 5 segundos. O objetivo é verificar se esse ciclo funciona corretamente quando não existem chamadas a `printk()` dentro do loop principal, evitando interferência com `uart_poll_out()`, que também utiliza o periférico UART.
 
 
-### **1. Inicialização da UART e do Callback**
+#### 1. Inicialização
 
-O código seleciona o dispositivo UART padrão definido no *Device Tree* (`DT_CHOSEN(zephyr_shell_uart)`) e registra uma função de *callback* responsável por tratar todos os eventos gerados pelo periférico.
-Esse *callback* (`uart_callback`) é chamado automaticamente sempre que ocorre um evento de transmissão concluída, buffer liberado, dados recebidos, entre outros.
-
-O registro é feito com:
-
-```c
-uart_callback_set(uart_dev, uart_callback, (void *)uart_dev);
-```
+* O código obtém o dispositivo UART definido por `zephyr_shell_uart`.
+* Verifica se o dispositivo está pronto.
+* Não é configurado nenhum mecanismo de interrupção; toda a comunicação ocorre em modo polling (para RX e TX).
 
 
-### **2. Envio Assíncrono de Dados (Transmissão - TX)**
+#### 2. Loop principal (executado indefinidamente)
 
-No *loop principal*, o programa aguarda 5 segundos entre cada iteração e, em seguida, gera um número aleatório de pacotes (de 1 a 4).
-Cada pacote contém uma pequena mensagem de texto com o número do loop e do pacote, por exemplo:
-
-```
-Loop 3: Packet 1
-```
-
-Esses pacotes são armazenados em buffers da pool `tx_pool` e transmitidos usando a função **`uart_tx()`**, que inicia a transmissão de forma assíncrona.
-Caso a UART esteja ocupada no momento do envio, o pacote é colocado em uma fila (`k_fifo tx_queue`) e será transmitido automaticamente quando o evento `UART_TX_DONE` indicar que o canal está livre.
-
-Ao final de cada transmissão, o evento `UART_TX_DONE` é acionado dentro do *callback*, liberando o buffer e enviando o próximo pacote da fila, se houver.
-Esse mecanismo garante que a transmissão ocorra de forma **contínua e não bloqueante**, sem perda de dados e sem travar a execução principal do sistema.
+Dentro do `while (1)`, duas fases acontecem sequencialmente:
 
 
-### **3. Recepção Assíncrona de Dados (RX)**
+### Etapa 1 — Recepção (RX) por 5 segundos
 
-A recepção é configurada para operar de forma assíncrona e alterna entre dois buffers (`async_rx_buffer[2][RX_CHUNK_LEN]`), implementando o conceito de **duplo buffer**.
-Quando o driver UART precisa de um novo buffer para armazenar os dados recebidos, ele aciona o evento `UART_RX_BUF_REQUEST`, e o código responde com:
+##### Comportamento da função `poll_receive()`
 
-```c
-uart_rx_buf_rsp(dev, async_rx_buffer[async_rx_buffer_idx], sizeof(async_rx_buffer[0]));
-```
+Durante 5 segundos:
 
-Isso permite que a recepção continue sem interrupções enquanto o outro buffer é processado.
+1. O programa chama repetidamente `uart_poll_in()` para tentar ler um byte.
+2. Se um caractere for recebido:
 
-Os dados recebidos são reportados no evento `UART_RX_RDY`, no qual o programa exibe o conteúdo recebido em formato hexadecimal no log:
+   * Se ele não for `'\r'`, é transmitido de volta usando `uart_poll_out()`, funcionando como um echo simples.
+3. A função chama `k_msleep(1)` a cada iteração, para:
 
-```c
-LOG_HEXDUMP_INF(evt->data.rx.buf + evt->data.rx.offset, evt->data.rx.len, "RX_RDY");
-```
+   * evitar uso excessivo da CPU,
+   * permitir escalonamento de outras threads pelo RTOS,
+   * manter uma temporização mais estável.
 
+##### Resultado esperado
 
-### **4. Alternância entre TX e RX**
-
-Uma característica central desse exemplo é a **alternância entre os modos de transmissão e recepção**.
-A cada iteração do *loop principal*, após enviar os pacotes, o código alterna o estado da UART:
-
-* Se a recepção estava habilitada, ela é desativada com `uart_rx_disable(uart_dev);`
-* Caso contrário, ela é habilitada novamente com `uart_rx_enable(uart_dev, async_rx_buffer[0], RX_CHUNK_LEN, 100);`
-
-Essa alternância periódica demonstra o uso dinâmico da API assíncrona, simulando cenários onde o dispositivo precisa **alternar entre enviar e receber dados** em momentos diferentes, mantendo a flexibilidade e o controle total da comunicação serial.
+* Qualquer caractere enviado pela outra ponta da UART é imediatamente devolvido (ecoado).
+* Se nada for recebido durante os 5 segundos, nada é transmitido.
 
 
-### **5. Comportamento Esperado**
+### Etapa 2 — Transmissão (TX) por 5 segundos
 
-Durante a execução, o programa deve:
+##### Comportamento da função `poll_transmit()`
 
-* A cada 5 segundos, **enviar de 1 a 4 mensagens UART** formatadas como “Loop X: Packet Y”;
-* Alternar o estado da recepção a cada ciclo (ativar/desativar RX);
-* Exibir logs informando transmissões, ativações e dados recebidos;
-* Manter a **fila de transmissão e buffers RX operando corretamente**, sem travamentos ou perda de dados.
+Durante 5 segundos:
+
+1. A função transmite repetidamente a mensagem:
+
+   ```
+   Cassoli carregado\r\n
+   ```
+2. A transmissão é feita caractere por caractere usando `uart_poll_out()`.
+3. Após cada envio completo, a função espera 200 ms antes de transmitir novamente.
+
+##### Resultado esperado
+
+* Durante todo o período de TX, a UART envia a mensagem "Cassoli carregado" várias vezes por segundo.
+* O intervalo entre cada mensagem é de aproximadamente 200 ms.
 
 
-### **6. Conclusão**
+### Alternância do ciclo
 
-Esse exemplo demonstra o uso prático da **API Assíncrona da UART no Zephyr**, evidenciando como é possível implementar uma comunicação **full-duplex, eficiente e não bloqueante** entre sistemas embarcados.
-O mecanismo de **eventos e buffers duplos** garante que transmissões e recepções possam ocorrer de forma simultânea, controlada e segura, sem a necessidade de *polling* ou espera ativa.
-A alternância periódica entre TX e RX reforça o uso flexível da UART, útil em aplicações como sistemas de telemetria, gateways de comunicação e protocolos seriais bidirecionais.
+O comportamento total é o seguinte:
+
+1. Recepção por 5 segundos
+   – A UART fica lendo caracteres e ecoa tudo o que chega.
+
+2. Transmissão por 5 segundos
+   – A UART envia repetidamente a mensagem "Cassoli carregado".
+
+3. Retorno ao estado de recepção
+   – O ciclo se repete continuamente.
+
+
+### Objetivo do teste
+
+O objetivo é garantir que a alternância RX/TX funciona corretamente quando:
+
+* Nenhuma chamada a `printk()` ocorre dentro do loop principal.
+* Apenas `uart_poll_in()` e `uart_poll_out()` acessam o periférico UART.
+* Evita-se conflito com `printk()`, que também utiliza o mesmo hardware UART.
+
+Em placas como a FRDM, o console UART é compartilhado internamente. Portanto, `printk()` pode interferir com `uart_poll_out()`, causando falhas ou travamentos. Ao remover `printk()` do loop principal, o teste verifica se o comportamento do ciclo fica estável.
+
+
+### Resumo geral
+
+| Intervalo (segundos) | Modo | Comportamento                           |
+| -------------------- | ---- | --------------------------------------- |
+| 0–5                  | RX   | Echo simples do que chega               |
+| 5–10                 | TX   | Envia "Cassoli carregado" repetidamente |
+| 10–15                | RX   | Retorna ao modo echo                    |
+| 15–20                | TX   | Envia novamente a mensagem              |
+| ...                  | ...  | Continua alternando indefinidamente     |
+
 
 ---
 
 ## 4.2 Casos de Teste Planejados (TDD)
 
 
-### **CT1 – Transmissão de pacotes a cada 5 segundos**
+### **CT1 – Comportamento do ciclo completo TX/RX (funcionamento geral)**
 
-| Item                       | Descrição                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | O sistema inicia a execução normalmente. Nenhum dado é enviado pela UART externa.                                                            |
-| **Saída esperada:**        | A cada 5 segundos, o log exibe mensagens no formato `Loop X: Sending N packets`, seguidas por `Loop X: Packet: Y`.                           |
-| **Critério de Aceitação:** | O intervalo entre ciclos é aproximadamente 5 segundos (±0,5s). Cada pacote é transmitido sem erro. Nenhum travamento ou erro de UART ocorre. |
-
-
-### **CT2 – Recepção de dados (RX habilitado)**
-
-| Item                       | Descrição                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Durante o período em que o log mostra “RX is now enabled”, o usuário envia caracteres ou strings via terminal serial.                        |
-| **Saída esperada:**        | O log exibe eventos `RX_RDY` com *hexdumps* dos dados recebidos.                                                                             |
-| **Critério de Aceitação:** | Todos os bytes enviados devem aparecer nos *logs* sem perda. Caso RX esteja desativado, nada é recebido. Nenhum erro de buffer deve ocorrer. |
+| Item                       | Descrição                                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | O sistema é iniciado e nenhum caractere é enviado externamente.                                                                                           |
+| **Saída esperada:**        | O firmware permanece 5s recebendo caracteres (sem ecoar nada, já que não há entrada) e depois 5s transmitindo repetidamente a string “Cassoli carregado”. |
+| **Critério de Aceitação:** | O ciclo RX→TX→RX continua indefinidamente, sem travar, sem apresentar erros na UART e sem interferências entre as fases.                                  |
 
 
-### **CT3 – Verificação de temporização de 5s**
+### **CT2 – Teste de Recepção (RX) com eco durante 5 segundos**
 
-| Item                       | Descrição                                                                                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Monitorar o log de saída do sistema por pelo menos 3 iterações consecutivas.                                                                           |
-| **Saída esperada:**        | A diferença de tempo entre as mensagens “Loop X” e “Loop X+1” é de aproximadamente 5 segundos.                                                         |
-| **Critério de Aceitação:** | O temporizador `k_sleep(K_SECONDS(5))` deve ser respeitado. Tolerância de ±0,5 segundos. O sistema não deve adiantar nem atrasar de forma perceptível. |
-
-
-### **CT4 – Fila de transmissão cheia (EBUSY)**
-
-| Item                       | Descrição                                                                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Reduzir o tempo de espera (para testes) ou aumentar o número de pacotes transmitidos (`LOOP_ITER_MAX_TX`) de forma que novas transmissões ocorram antes da anterior terminar. |
-| **Saída esperada:**        | Quando a UART estiver ocupada, o log exibe `Queuing buffer <ptr>`. Após o evento `TX_DONE`, os buffers enfileirados são enviados automaticamente.                             |
-| **Critério de Aceitação:** | Nenhum pacote é perdido. A fila `k_fifo` é processada corretamente após cada `TX_DONE`. O sistema continua operando normalmente, sem travar nem perder dados.                 |
+| Item                       | Descrição                                                                                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Durante a fase RX (primeiros 5s do ciclo), o usuário envia caracteres aleatórios, palavras ou sequências rápidas pelo terminal serial.                |
+| **Saída esperada:**        | Cada caractere recebido é ecoado imediatamente (exceto '\r'), demonstrando funcionamento contínuo do `uart_poll_in()` seguido de `uart_poll_out()`.   |
+| **Critério de Aceitação:** | Todos os caracteres enviados são ecoados sem perda. O eco deve ocorrer somente na fase RX; durante TX nenhum caractere deve ser ecoado ou processado. |
 
 
-### **CT5 – Alternância de recepção (RX ON/OFF)**
+### **CT3 – Teste de Transmissão (TX) durante 5 segundos**
 
-| Item                       | Descrição                                                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Observar a execução contínua do código. A cada iteração do loop principal, o RX deve alternar entre habilitado e desabilitado. |
-| **Saída esperada:**        | O log mostra alternadamente “RX is now enabled” e “RX is now disabled” a cada ciclo.                                           |
-| **Critério de Aceitação:** | A alternância ocorre corretamente a cada 5 segundos. Nenhum erro ou exceção ocorre durante a ativação ou desativação do RX.    |
-
-
-### **CT6 – Double buffering de recepção**
-
-| Item                       | Descrição                                                                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Enviar dados continuamente durante o período RX habilitado (por exemplo, via script Python).                                  |
-| **Saída esperada:**        | O log exibe alternância entre `Providing buffer index 0` e `Providing buffer index 1` em eventos `UART_RX_BUF_REQUEST`.       |
-| **Critério de Aceitação:** | O sistema alterna corretamente entre os dois buffers (`async_rx_buffer[2]`). Nenhum dado é perdido durante a troca de buffer. |
+| Item                       | Descrição                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Deixar o sistema rodar até a fase TX. Opcionalmente tentar enviar caracteres externos durante esta fase.                                                     |
+| **Saída esperada:**        | A mensagem “Cassoli carregado\r\n” é transmitida repetidamente a cada ~200 ms. Caractere enviados externamente **não devem ser ecoados** durante a fase TX.  |
+| **Critério de Aceitação:** | A transmissão ocorre continuamente durante 5s sem falhas, congelamentos ou interrupção. Letras externas durante TX são ignoradas, confirmando isolamento RX. |
 
 
-### **CT7 – Alta taxa de entrada de caracteres**
+### **CT4 – Verificação da temporização dos ciclos (5s RX / 5s TX)**
 
-| Item                       | Descrição                                                                                                                                                                                    |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Um script envia dados rapidamente (múltiplas linhas ou bytes por segundo) durante o período RX habilitado.                                                                                   |
-| **Saída esperada:**        | O sistema processa e exibe os eventos `RX_RDY` normalmente até o limite do buffer. Excedentes são descartados de forma silenciosa.                                                           |
-| **Critério de Aceitação:** | O sistema não trava nem reinicia. O ISR (`uart_callback`) deve lidar com o fluxo sem falhas. Mensagens excedentes podem ser ignoradas, mas a aplicação deve permanecer estável e responsiva. |
+| Item                       | Descrição                                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Observar o comportamento por pelo menos 3 ciclos completos (mínimo 30 segundos).                                                        |
+| **Saída esperada:**        | A alternância RX→TX→RX ocorre aproximadamente a cada 5 segundos por fase (total de ~10s por ciclo).                                     |
+| **Critério de Aceitação:** | O desvio máximo é ±0,5s. O tempo de troca entre RX e TX não deve variar visivelmente ou acumular erro ao longo dos ciclos subsequentes. |
 
 
-### **CT8 – Execução contínua e estabilidade**
+### **CT5 – Eco rápido / carga alta durante RX**
 
-| Item                       | Descrição                                                                                                |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Deixar o sistema executando continuamente por 10 minutos (ou mais) com TX/RX ativos.                     |
-| **Saída esperada:**        | O sistema mantém alternância RX/TX e gera logs regulares. Nenhum erro crítico (`ERR`) é registrado.      |
-| **Critério de Aceitação:** | A aplicação permanece funcional por todo o período. Sem travamentos, reinicializações ou falhas de UART. |
+| Item                       | Descrição                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Enviar caracteres rapidamente (sustentado ou burst), incluindo sequências longas, repetitivas e com intervalos muito curtos durante a fase RX.               |
+| **Saída esperada:**        | O sistema mantém o eco de todos os caracteres possíveis dentro da limitação natural do polling, sem travamento e sem perder fluidez.                         |
+| **Critério de Aceitação:** | Não ocorre queda de desempenho ou bloqueio. Caractere podem ser perdidos se enviadas rápido demais (limitação da UART em polling), mas sem travar o sistema. |
+
+
+### **CT6 – Transmissão contínua sem interferência com RX**
+
+| Item                       | Descrição                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Entrada:**               | Durante 5s de transmissão, enviar caracteres pelo terminal e monitorar se o RX interfere ou bagunça a transmissão.                                              |
+| **Saída esperada:**        | A transmissão continua estável e ininterrupta. Os caracteres enviados externamente não são ecoados e não afetam a ordem ou conteúdo das mensagens transmitidas. |
+| **Critério de Aceitação:** | Zero interferência mútua. O TX funciona independentemente de tentativas de RX.                                                                                  |
+
+
+### **CT7 – Estabilidade do loop infinito**
+
+| Item                       | Descrição                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| **Entrada:**               | Deixar o sistema operando por longos períodos (mínimo 2 minutos).                          |
+| **Saída esperada:**        | Os ciclos RX/TX continuam ocorrendo indefinidamente, sempre com 5 segundos para cada modo. |
+| **Critério de Aceitação:** | Sem travamentos, sem bloqueios na UART, sem necessidade de reinicialização manual.         |
+
 
 ---
 
 
 ## 4.3 Implementação
 
-A implementação seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação). 
+A implementação original baseada na API assíncrona do Zephyr não era compatível com a placa FRDM-KL25Z, pois o driver UART disponível não oferece suporte aos eventos e funcionalidades necessários (callbacks, buffers de recepção, uart_tx() assíncrono, duplo-buffer, FIFO, etc.).
+Para cumprir o objetivo da atividade — observar a alternância entre transmissão e recepção — o código foi reescrito utilizando apenas UART em modo polling (uart_poll_in e uart_poll_out), que é plenamente suportado pela placa.
+
+A lógica de TX/RX por ciclos de 5 segundos foi preservada, permitindo visualizar claramente o comportamento alternado, mesmo sem os recursos avançados do async_api. A simplificação também eliminou interferências causadas por printk() e manteve o foco nas operações de UART.
+
+Entretanto, a compilação do códgio e envio para a placa seguiu o mesmo procedimento adotado na atividade anterior [Item 3.3](#33-implementação). 
 
 Difererindo no comando de compilação, no qual foi utilizado:
 
@@ -707,41 +718,20 @@ Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa2_
 ```
 shape: sequence_diagram
 
-App -> UART_Driver: uart_callback_set
-note over UART_Driver: Registra callback assíncrono
+main -> UART: "poll_receive(5000)"
+note over UART: "Lê caracteres via uart_poll_in() por 5s"
 
-loop a cada 5 segundos
-    App -> App: sys_rand32_get → define num_tx
-    
-    loop para cada pacote
-        App -> UART_Driver: net_buf_alloc / preenche tx_buf
-        App -> UART_Driver: uart_tx(tx_buf)
-        
-        alt UART livre
-            UART_Driver -> UART_Hardware: inicia transmissão
-            UART_Hardware -> UART_Driver: UART_TX_DONE
-            UART_Driver -> k_fifo: verifica fila e envia próximo buffer
-        else UART ocupado
-            UART_Driver -> k_fifo: enfileira tx_buf
-        end
-    end
+UART -> UART: "Se caractere recebido"
+UART -> main: "Entrega caractere"
+main -> UART: "uart_poll_out() ecoa o caractere"
 
-    App -> UART_Driver: alterna RX enable/disable
-    UART_Driver -> UART_Hardware: uart_rx_enable / uart_rx_disable
-end
+main -> UART: "poll_transmit(5000)"
+note over main: "Envia 'Cassoli carregado' por 5s"
 
-note over UART_Hardware: Interrupções UART geradas
+main -> UART: "uart_poll_out() repetido"
+note over UART: "Mensagem transmitida a cada ~200ms"
 
-== Eventos assíncronos UART ==
-
-UART_Hardware -> UART_Driver: UART_RX_BUF_REQUEST
-UART_Driver -> UART_Hardware: uart_rx_buf_rsp
-
-UART_Hardware -> UART_Driver: UART_RX_RDY
-note over UART_Driver: Dados RX recebidos
-
-UART_Hardware -> UART_Driver: UART_TX_DONE
-note over UART_Driver: Libera buffer TX e processa fila
+main -> main: "Loop reinicia (while 1)"
 ```
 
 ### **Diagrama**

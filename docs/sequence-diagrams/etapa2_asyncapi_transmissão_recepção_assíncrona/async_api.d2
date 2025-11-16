@@ -1,37 +1,16 @@
 shape: sequence_diagram
 
-App -> UART_Driver: uart_callback_set
-note over UART_Driver: Registra callback assíncrono
+main -> UART: "poll_receive(5000)"
+note over UART: "Lê caracteres via uart_poll_in() por 5s"
 
-loop a cada 5 segundos
-    App -> App: sys_rand32_get → define num_tx
-    
-    loop para cada pacote
-        App -> UART_Driver: net_buf_alloc / preenche tx_buf
-        App -> UART_Driver: uart_tx(tx_buf)
-        
-        alt UART livre
-            UART_Driver -> UART_Hardware: inicia transmissão
-            UART_Hardware -> UART_Driver: UART_TX_DONE
-            UART_Driver -> k_fifo: verifica fila e envia próximo buffer
-        else UART ocupado
-            UART_Driver -> k_fifo: enfileira tx_buf
-        end
-    end
+UART -> UART: "Se caractere recebido"
+UART -> main: "Entrega caractere"
+main -> UART: "uart_poll_out() ecoa o caractere"
 
-    App -> UART_Driver: alterna RX enable/disable
-    UART_Driver -> UART_Hardware: uart_rx_enable / uart_rx_disable
-end
+main -> UART: "poll_transmit(5000)"
+note over main: "Envia 'Cassoli carregado' por 5s"
 
-note over UART_Hardware: Interrupções UART geradas
+main -> UART: "uart_poll_out() repetido"
+note over UART: "Mensagem transmitida a cada ~200ms"
 
-== Eventos assíncronos UART ==
-
-UART_Hardware -> UART_Driver: UART_RX_BUF_REQUEST
-UART_Driver -> UART_Hardware: uart_rx_buf_rsp
-
-UART_Hardware -> UART_Driver: UART_RX_RDY
-note over UART_Driver: Dados RX recebidos
-
-UART_Hardware -> UART_Driver: UART_TX_DONE
-note over UART_Driver: Libera buffer TX e processa fila
+main -> main: "Loop reinicia (while 1)"
