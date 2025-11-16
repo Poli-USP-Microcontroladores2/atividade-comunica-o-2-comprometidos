@@ -610,71 +610,70 @@ O objetivo é garantir que a alternância RX/TX funciona corretamente usando uma
 
 ---
 
-## 4.2 Casos de Teste Planejados (TDD)
+## **4.2 Casos de Teste Planejados** – *Bot Cíclico RX/TX (Zephyr)*
 
 
-### **CT1 – Comportamento do ciclo completo TX/RX (funcionamento geral)**
+### **CT1 – Caminho Feliz (Happy Path)**
 
-| Item                       | Descrição                                                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | O sistema é iniciado e nenhum caractere é enviado externamente.                                                                                           |
-| **Saída esperada:**        | O firmware permanece 5s recebendo caracteres (sem ecoar nada, já que não há entrada) e depois 5s transmitindo repetidamente a string “Cassoli carregado”. |
-| **Critério de Aceitação:** | O ciclo RX→TX→RX continua indefinidamente, sem travar, sem apresentar erros na UART e sem interferências entre as fases.                                  |
-
-
-### **CT2 – Teste de Recepção (RX) com eco durante 5 segundos**
-
-| Item                       | Descrição                                                                                                                                             |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Durante a fase RX (primeiros 5s do ciclo), o usuário envia caracteres aleatórios, palavras ou sequências rápidas pelo terminal serial.                |
-| **Saída esperada:**        | Cada caractere recebido é ecoado imediatamente (exceto '\r'), demonstrando funcionamento contínuo do `uart_poll_in()` seguido de `uart_poll_out()`.   |
-| **Critério de Aceitação:** | Todos os caracteres enviados são ecoados sem perda. O eco deve ocorrer somente na fase RX; durante TX nenhum caractere deve ser ecoado ou processado. |
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. Aguardar "Modo RX: Acumulando mensagens...".<br>2. Enviar `teste1` + Enter.<br>3. Enviar `teste2` + Enter.<br>4. Aguardar o "Modo TX". |
+| **Saída esperada:** | `Modo TX: Esvaziando fila...`<br>`Eco: teste1`<br>`Eco: teste2` |
+| **Critério de Aceitação:** | As mensagens são enfileiradas pela ISR durante o RX e impressas (esvaziadas) pela thread `main` apenas quando o "Modo TX" se inicia. A ordem FIFO é preservada. |
 
 
-### **CT3 – Teste de Transmissão (TX) durante 5 segundos**
+### **CT2 – Descarte de Mensagens (Modo TX)**
 
-| Item                       | Descrição                                                                                                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Deixar o sistema rodar até a fase TX. Opcionalmente tentar enviar caracteres externos durante esta fase.                                                     |
-| **Saída esperada:**        | A mensagem “Cassoli carregado\r\n” é transmitida repetidamente a cada ~200 ms. Caractere enviados externamente **não devem ser ecoados** durante a fase TX.  |
-| **Critério de Aceitação:** | A transmissão ocorre continuamente durante 5s sem falhas, congelamentos ou interrupção. Letras externas durante TX são ignoradas, confirmando isolamento RX. |
-
-
-### **CT4 – Verificação da temporização dos ciclos (5s RX / 5s TX)**
-
-| Item                       | Descrição                                                                                                                               |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Observar o comportamento por pelo menos 3 ciclos completos (mínimo 30 segundos).                                                        |
-| **Saída esperada:**        | A alternância RX→TX→RX ocorre aproximadamente a cada 5 segundos por fase (total de ~10s por ciclo).                                     |
-| **Critério de Aceitação:** | O desvio máximo é ±0,5s. O tempo de troca entre RX e TX não deve variar visivelmente ou acumular erro ao longo dos ciclos subsequentes. |
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. Aguardar "Modo TX: Esvaziando fila...".<br>2. *Durante* os 5s do Modo TX, enviar `lixo1` + Enter.<br>3. Enviar `lixo2` + Enter.<br>4. Aguardar o próximo ciclo de "Modo TX". |
+| **Saída esperada:** | As mensagens "Eco: lixo1" e "Eco: lixo2" **NÃO** devem ser impressas em nenhum momento. |
+| **Critério de Aceitação:** | Mensagens recebidas pela ISR durante o "Modo TX" são enfileiradas, mas devem ser descartadas pelo `k_msgq_purge()` no início do "Modo RX" seguinte. |
 
 
-### **CT5 – Eco rápido / carga alta durante RX**
+### **CT3 – Ciclo Vazio (Sem Input)**
 
-| Item                       | Descrição                                                                                                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Enviar caracteres rapidamente (sustentado ou burst), incluindo sequências longas, repetitivas e com intervalos muito curtos durante a fase RX.               |
-| **Saída esperada:**        | O sistema mantém o eco de todos os caracteres possíveis dentro da limitação natural do polling, sem travamento e sem perder fluidez.                         |
-| **Critério de Aceitação:** | Não ocorre queda de desempenho ou bloqueio. Caractere podem ser perdidos se enviadas rápido demais (limitação da UART em polling), mas sem travar o sistema. |
-
-
-### **CT6 – Transmissão contínua sem interferência com RX**
-
-| Item                       | Descrição                                                                                                                                                       |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Entrada:**               | Durante 5s de transmissão, enviar caracteres pelo terminal e monitorar se o RX interfere ou bagunça a transmissão.                                              |
-| **Saída esperada:**        | A transmissão continua estável e ininterrupta. Os caracteres enviados externamente não são ecoados e não afetam a ordem ou conteúdo das mensagens transmitidas. |
-| **Critério de Aceitação:** | Zero interferência mútua. O TX funciona independentemente de tentativas de RX.                                                                                  |
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | Nenhuma entrada do usuário na UART por vários ciclos (ex: 30 segundos). |
+| **Saída esperada:** | O console imprime apenas as mensagens de estado:<br>`Modo RX: ...`<br>`Modo TX: ...`<br>`--- Reiniciando ciclo ---`<br>(Repetidamente, sem linhas "Eco:"). |
+| **Critério de Aceitação:** | O sistema deve permanecer estável, alternando os modos indefinidamente, e não travar ou falhar ao chamar `k_msgq_get()` em uma fila vazia. |
 
 
-### **CT7 – Estabilidade do loop infinito**
+### **CT4 – Estouro de Fila (Queue Overflow)**
 
-| Item                       | Descrição                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------ |
-| **Entrada:**               | Deixar o sistema operando por longos períodos (mínimo 2 minutos).                          |
-| **Saída esperada:**        | Os ciclos RX/TX continuam ocorrendo indefinidamente, sempre com 5 segundos para cada modo. |
-| **Critério de Aceitação:** | Sem travamentos, sem bloqueios na UART, sem necessidade de reinicialização manual.         |
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. Aguardar "Modo RX".<br>2. Enviar 12 mensagens curtas (ex: "1", "2", ... "12"), cada uma seguida de Enter, rapidamente dentro dos 5s. |
+| **Saída esperada:** | O "Modo TX" deve imprimir **exatamente 10** mensagens:<br>`Eco: 1`<br>...<br>`Eco: 10` |
+| **Critério de Aceitação:** | A fila (`K_MSGQ_DEFINE`) tem capacidade para 10. A ISR (`k_msgq_put` com `K_NO_WAIT`) deve enfileirar as 10 primeiras e descartar silenciosamente as mensagens "11" e "12". |
 
+
+### **CT5 – Estouro de Mensagem (Truncation)**
+
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. Aguardar "Modo RX".<br>2. Enviar uma linha longa: `1234567890123456789012345678901AAAA` (35 chars) + Enter. |
+| **Saída esperada:** | `Eco: 1234567890123456789012345678901` |
+| **Critério de Aceitação:** | O buffer da ISR (`rx_buf`) tem `MSG_SIZE = 32`. A lógica `serial_cb` deve salvar no máximo 31 caracteres (deixando espaço para o `\0`) e descartar os caracteres excedentes ("AAAA"). |
+
+
+### **CT6 – Linha Vazia (Apenas Enter)**
+
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. Aguardar "Modo RX".<br>2. Pressionar a tecla Enter 5 vezes. |
+| **Saída esperada:** | Nenhuma linha "Eco:" deve ser impressa durante o "Modo TX". |
+| **Critério de Aceitação:** | A lógica `if (rx_buf_pos > 0)` na ISR `serial_cb` deve corretamente identificar linhas vazias e *não* enfileirá-las, evitando processamento desnecessário. |
+
+
+### **CT7 – Teste de Transição (RX durante TX)**
+
+| Item | Descrição |
+| :--- | :--- |
+| **Entrada:** | 1. No "Modo RX" 1, enviar `valido1` + Enter.<br>2. No "Modo TX" 1, enviar `invalido1` + Enter.<br>3. No "Modo RX" 2, enviar `valido2` + Enter. |
+| **Saída esperada:** | No "Modo TX" 1: `Eco: valido1`<br>No "Modo TX" 2: `Eco: valido2` |
+| **Critério de Aceitação:** | `invalido1` (enviado durante o "Modo TX" 1) é enfileirado pela ISR, mas é corretamente descartado pelo `k_msgq_purge()` no início do "Modo RX" 2. Apenas `valido2` sobrevive para ser impresso no ciclo 2. |
 
 ---
 
