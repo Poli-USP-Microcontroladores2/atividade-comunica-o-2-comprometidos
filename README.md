@@ -706,6 +706,8 @@ Difererindo no comando de compilação, no qual foi utilizado:
 west build -p always -b frdm_kl25z samples/drivers/uart/async_api
 ```
 
+---
+
 ## 4.4 Evidências de Funcionamento
 
 Todas as evidências disponíveis em [docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/).
