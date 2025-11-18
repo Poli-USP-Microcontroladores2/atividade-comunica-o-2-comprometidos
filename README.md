@@ -681,7 +681,7 @@ O objetivo é garantir que a alternância RX/TX funciona corretamente usando uma
 ## 4.3 Implementação
 
 A implementação original baseada na API assíncrona do Zephyr não era compatível com a placa FRDM-KL25Z, pois o driver UART disponível não oferece suporte aos eventos e funcionalidades necessários (callbacks, buffers de recepção, uart_tx() assíncrono, duplo-buffer, FIFO, etc.).
-Para cumprir o objetivo da atividade — observar a alternância entre transmissão e recepção — o código foi reescrito utilizando apenas UART em modo polling (uart_poll_in e uart_poll_out), que é plenamente suportado pela placa.
+Para cumprir o objetivo da atividade — observar a alternância entre transmissão e recepção — o código do Echo Bot foi reescrito utilizando UART em modo polling e UART por interrupção, que é plenamente suportado pela placa.
 
 A lógica de TX/RX por ciclos de 5 segundos foi preservada, permitindo visualizar claramente o comportamento alternado, mesmo sem os recursos avançados do async_api. A simplificação também eliminou interferências causadas por printk() e manteve o foco nas operações de UART.
 
