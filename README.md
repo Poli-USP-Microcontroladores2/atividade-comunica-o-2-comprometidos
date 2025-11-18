@@ -463,36 +463,49 @@ Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa1_
 ### **Código base D2**
 
 ```
-shape: sequence_diagram
+Diagrama Sequencial Echo_Bot{
+    shape: sequence_diagram
 
-# Echo Bot UART - Diagrama de Sequência
+    Usuario: "Usuário"
+    Main: "main()"
+    UART: "UART Hardware"
+    ISR: "ISR serial_cb"
+    Queue: "uart_msgq Queue"
 
-App -> UART_Driver: "uart_irq_callback_user_data_set(serial_cb)"
-UART_Driver -> UART_Hardware: "Registra callback de interrupção"
+    Main -> UART: device_is_ready()
+    UART -> Main: OK
 
-App -> UART_Driver: "uart_irq_rx_enable()"
-UART_Driver -> UART_Hardware: "Habilita RX"
+    Main -> UART: uart_irq_callback_user_data_set(serial_cb)
+    UART -> Main: retorno OK
 
-App -> UART_Hardware: "print_uart('Hello! I\\'m your echo bot.')"
-App -> UART_Hardware: "print_uart('Tell me something and press enter:')"
+    Main -> UART: uart_irq_rx_enable()
 
-loop "aguarda entrada do usuário"
-    UART_Hardware -> UART_Driver: "caracteres recebidos via IRQ"
-    UART_Driver -> UART_Driver: "serial_cb() processa cada caractere"
-    alt "fim de linha detectado (\\r ou \\n)"
-        UART_Driver -> k_msgq: "k_msgq_put(rx_buf)"
-        k_msgq -> App: "linha pronta para eco"
-        App -> UART_Hardware: "print_uart('Echo: ')"
-        App -> UART_Hardware: "print_uart(linha)"
-        App -> UART_Hardware: "print_uart('\\r\\n')"
-    else "linha não finalizada"
-        UART_Driver -> UART_Driver: "acumula caractere em rx_buf"
-    end
-end
+    Main -> UART: print_uart("Hello! I'm your echo bot.")
+    Main -> UART: print_uart("Tell me something and press enter:")
+
+    Usuario -> UART: Digita caracteres
+    UART -> ISR: Interrupção RX
+
+    ISR -> ISR: uart_irq_update()
+    ISR -> ISR: uart_irq_rx_ready()
+
+    ISR -> ISR: uart_fifo_read()
+
+    ISR -> ISR: rx_buf_pos++
+    ISR -> ISR: Detecta '\n' ou '\r'
+
+    ISR -> Queue: k_msgq_put(rx_buf)
+
+    Main -> Queue: k_msgq_get(K_FOREVER)
+    Queue -> Main: msg recebida
+
+    Main -> UART: print_uart("Echo: <msg>")
+}
+
 ```
 ### **Diagrama**
 
-![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
+<!--- ![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg) --->
 
 ---
 
@@ -764,27 +777,52 @@ Diagrama completo e código base disponíveis em [docs/sequence-diagrams/etapa2_
 ### **Código base D2**
 
 ```
-shape: sequence_diagram
+Diagrama Sequencial Bot Cíclico RX/TX {
+  shape: sequence_diagram
 
-main -> UART: "poll_receive(5000)"
-note over UART: "Lê caracteres via uart_poll_in() por 5s"
+  Usuario: "Usuário / Terminal"
+  Main: "Thread principal (main)"
+  UART: "UART Hardware"
+  ISR: "ISR serial_cb"
+  Queue: "Fila uart_msgq"
 
-UART -> UART: "Se caractere recebido"
-UART -> main: "Entrega caractere"
-main -> UART: "uart_poll_out() ecoa o caractere"
+  Usuario -> UART: Envia caracteres\n(via porta serial)
+  UART -> ISR: Dispara interrupção RX\n(uart_irq_rx_ready)
 
-main -> UART: "poll_transmit(5000)"
-note over main: "Envia 'Cassoli carregado' por 5s"
+  ISR -> ISR: Lê caracteres com uart_fifo_read()
+  ISR -> Queue: k_msgq_put()\n(Enfileira mensagem\nquando '\n' ou '\r')
+  ISR -> UART: Retorna controle
 
-main -> UART: "uart_poll_out() repetido"
-note over UART: "Mensagem transmitida a cada ~200ms"
+  Main -> UART: uart_irq_rx_enable()\n(Ativa RX por interrupção)
+  Main -> Main: Loop infinito
 
-main -> main: "Loop reinicia (while 1)"
+  Main -> Queue: k_msgq_purge()\n(Limpa fila no início do RX)
+  Main -> UART: print_uart("Modo RX...")
+  Main -> Main: k_sleep(5s)\n(Recebendo em background)
+  
+  Usuario -> UART: Envia várias mensagens
+  UART -> ISR: Interrupções RX continuam
+  ISR -> Queue: Mensagens entram na fila\n(até total 10)
+
+  Main -> UART: print_uart("Modo TX...")
+  
+  Main -> Queue: k_msgq_get() (repetidamente)
+  Queue -> Main: Retorna mensagens
+
+  Main -> UART: print_uart("Eco: <msg>")
+
+  Main -> Main: k_sleep(5s)\n(Descarta entradas via ISR)
+  UART -> ISR: Ainda recebe dados\n(mas serão purgados)
+
+  Main -> UART: print_uart("--- Reiniciando ciclo ---")
+  Main -> Main: Recomeça ciclo RX/TX
+}
+
 ```
 
 ### **Diagrama**
 
-![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg)
+<!--- ![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg) --->
 
 ---
 

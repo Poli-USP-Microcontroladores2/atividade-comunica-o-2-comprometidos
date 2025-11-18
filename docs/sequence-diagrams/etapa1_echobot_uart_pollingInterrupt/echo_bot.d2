@@ -1,26 +1,38 @@
-shape: sequence_diagram
+Diagrama Sequencial Echo_Bot{
+    shape: sequence_diagram
 
-# Echo Bot UART - Diagrama de Sequência
+    Usuario: "Usuário"
+    Main: "main()"
+    UART: "UART Hardware"
+    ISR: "ISR serial_cb"
+    Queue: "uart_msgq Queue"
 
-App -> UART_Driver: "uart_irq_callback_user_data_set(serial_cb)"
-UART_Driver -> UART_Hardware: "Registra callback de interrupção"
+    Main -> UART: device_is_ready()
+    UART -> Main: OK
 
-App -> UART_Driver: "uart_irq_rx_enable()"
-UART_Driver -> UART_Hardware: "Habilita RX"
+    Main -> UART: uart_irq_callback_user_data_set(serial_cb)
+    UART -> Main: retorno OK
 
-App -> UART_Hardware: "print_uart('Hello! I\\'m your echo bot.')"
-App -> UART_Hardware: "print_uart('Tell me something and press enter:')"
+    Main -> UART: uart_irq_rx_enable()
 
-loop "aguarda entrada do usuário"
-    UART_Hardware -> UART_Driver: "caracteres recebidos via IRQ"
-    UART_Driver -> UART_Driver: "serial_cb() processa cada caractere"
-    alt "fim de linha detectado (\\r ou \\n)"
-        UART_Driver -> k_msgq: "k_msgq_put(rx_buf)"
-        k_msgq -> App: "linha pronta para eco"
-        App -> UART_Hardware: "print_uart('Echo: ')"
-        App -> UART_Hardware: "print_uart(linha)"
-        App -> UART_Hardware: "print_uart('\\r\\n')"
-    else "linha não finalizada"
-        UART_Driver -> UART_Driver: "acumula caractere em rx_buf"
-    end
-end
+    Main -> UART: print_uart("Hello! I'm your echo bot.")
+    Main -> UART: print_uart("Tell me something and press enter:")
+
+    Usuario -> UART: Digita caracteres
+    UART -> ISR: Interrupção RX
+
+    ISR -> ISR: uart_irq_update()
+    ISR -> ISR: uart_irq_rx_ready()
+
+    ISR -> ISR: uart_fifo_read()
+
+    ISR -> ISR: rx_buf_pos++
+    ISR -> ISR: Detecta '\n' ou '\r'
+
+    ISR -> Queue: k_msgq_put(rx_buf)
+
+    Main -> Queue: k_msgq_get(K_FOREVER)
+    Queue -> Main: msg recebida
+
+    Main -> UART: print_uart("Echo: <msg>")
+}
