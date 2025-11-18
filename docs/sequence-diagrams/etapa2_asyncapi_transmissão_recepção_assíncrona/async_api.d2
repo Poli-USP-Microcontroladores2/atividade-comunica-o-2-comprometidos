@@ -1,0 +1,40 @@
+Diagrama Sequencial Bot Cíclico RX/TX {
+  shape: sequence_diagram
+
+  Usuario: "Usuário / Terminal"
+  Main: "Thread principal (main)"
+  UART: "UART Hardware"
+  ISR: "ISR serial_cb"
+  Queue: "Fila uart_msgq"
+
+  Usuario -> UART: Envia caracteres\n(via porta serial)
+  UART -> ISR: Dispara interrupção RX\n(uart_irq_rx_ready)
+
+  ISR -> ISR: Lê caracteres com uart_fifo_read()
+  ISR -> Queue: k_msgq_put()\n(Enfileira mensagem\nquando '\n' ou '\r')
+  ISR -> UART: Retorna controle
+
+  Main -> UART: uart_irq_rx_enable()\n(Ativa RX por interrupção)
+  Main -> Main: Loop infinito
+
+  Main -> Queue: k_msgq_purge()\n(Limpa fila no início do RX)
+  Main -> UART: print_uart("Modo RX...")
+  Main -> Main: k_sleep(5s)\n(Recebendo em background)
+  
+  Usuario -> UART: Envia várias mensagens
+  UART -> ISR: Interrupções RX continuam
+  ISR -> Queue: Mensagens entram na fila\n(até total 10)
+
+  Main -> UART: print_uart("Modo TX...")
+  
+  Main -> Queue: k_msgq_get() (repetidamente)
+  Queue -> Main: Retorna mensagens
+
+  Main -> UART: print_uart("Eco: <msg>")
+
+  Main -> Main: k_sleep(5s)\n(Descarta entradas via ISR)
+  UART -> ISR: Ainda recebe dados\n(mas serão purgados)
+
+  Main -> UART: print_uart("--- Reiniciando ciclo ---")
+  Main -> Main: Recomeça ciclo RX/TX
+}

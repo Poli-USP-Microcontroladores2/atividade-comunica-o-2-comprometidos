@@ -1,0 +1,4 @@
+Hello! I'm your echo bot.
+Tell me something and press enter:
+---- Sent utf8 encoded message: "Olá, você está bem? äöüñç\r" ----
+Echo: Olá, você está bem? ����üñ

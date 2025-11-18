@@ -1,0 +1,6 @@
+Hello! I'm your echo bot.
+Tell me something and press enter:
+---- Sent utf8 encoded message: "1234567890123456789012345678901234567890\r" ----
+Echo: 1234567890123456789012345678901
+
+

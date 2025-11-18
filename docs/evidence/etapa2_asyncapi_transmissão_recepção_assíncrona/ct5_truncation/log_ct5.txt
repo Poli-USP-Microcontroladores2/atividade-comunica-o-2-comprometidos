@@ -1,0 +1,6 @@
+*** Booting Zephyr OS build v4.3.0-rc3-14-g13daf245a801 ***
+Modo RX: Acumulando mensagens por 5s...
+---- Sent utf8 encoded message: "1234567890123456789012345678901AAAA\r" ----
+Modo TX: Esvaziando fila... (Próximo RX em 5s)
+Eco: 1234567890123456789012345678901
+--- Reiniciando ciclo ---

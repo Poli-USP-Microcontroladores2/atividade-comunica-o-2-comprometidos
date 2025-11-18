@@ -1,0 +1,38 @@
+Diagrama Sequencial Echo_Bot{
+    shape: sequence_diagram
+
+    Usuario: "Usuário"
+    Main: "main()"
+    UART: "UART Hardware"
+    ISR: "ISR serial_cb"
+    Queue: "uart_msgq Queue"
+
+    Main -> UART: device_is_ready()
+    UART -> Main: OK
+
+    Main -> UART: uart_irq_callback_user_data_set(serial_cb)
+    UART -> Main: retorno OK
+
+    Main -> UART: uart_irq_rx_enable()
+
+    Main -> UART: print_uart("Hello! I'm your echo bot.")
+    Main -> UART: print_uart("Tell me something and press enter:")
+
+    Usuario -> UART: Digita caracteres
+    UART -> ISR: Interrupção RX
+
+    ISR -> ISR: uart_irq_update()
+    ISR -> ISR: uart_irq_rx_ready()
+
+    ISR -> ISR: uart_fifo_read()
+
+    ISR -> ISR: rx_buf_pos++
+    ISR -> ISR: Detecta '\n' ou '\r'
+
+    ISR -> Queue: k_msgq_put(rx_buf)
+
+    Main -> Queue: k_msgq_get(K_FOREVER)
+    Queue -> Main: msg recebida
+
+    Main -> UART: print_uart("Echo: <msg>")
+}
