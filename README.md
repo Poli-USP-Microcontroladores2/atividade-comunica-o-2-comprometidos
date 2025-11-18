@@ -505,7 +505,7 @@ Diagrama Sequencial Echo_Bot{
 ```
 ### **Diagrama**
 
-<!--- ![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg) --->
+![svg Diagrama](docs/sequence-diagrams/etapa1_echobot_uart_pollingInterrupt/echo_bot.svg)
 
 ---
 
@@ -822,7 +822,7 @@ Diagrama Sequencial Bot Cíclico RX/TX {
 
 ### **Diagrama**
 
-<!--- ![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg) --->
+![svg Diagrama](docs/sequence-diagrams/etapa2_asyncapi_transmissão_recepção_assíncrona/async_api.svg)
 
 ---
 
