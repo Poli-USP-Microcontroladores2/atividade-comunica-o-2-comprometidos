@@ -388,7 +388,6 @@ O processo demonstrou corretamente o funcionamento da comunicação UART no Zeph
 
 Todas as evidências disponíveis em [docs/evidence/etapa1_echobot_uart_pollingInterrupt/](docs/evidence/etapa1_echobot_uart_pollingInterrupt/).
 
----
 
 ### Evidências CT1 – Eco básico
 
@@ -712,7 +711,6 @@ west build -p always -b frdm_kl25z samples/drivers/uart/async_api
 
 Todas as evidências disponíveis em [docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/).
 
----
 
 ### Evidências CT1 – Caminho Feliz (Happy Path)
 
