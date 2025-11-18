@@ -828,5 +828,34 @@ Diagrama Sequencial Bot Cíclico RX/TX {
 
 # 5. Conclusões da Dupla
 
-* O que deu certo:
-* O que foi mais desafiador:
+A realização das duas etapas permitiu compreender, na prática, diferentes abordagens de comunicação UART no Zephyr e suas limitações quando aplicadas a hardwares específicos — no caso, a FRDM-KL25Z.
+
+Na **Etapa 1 (Echo Bot)**, foi possível observar de forma clara como o Zephyr gerencia recepção assíncrona por interrupção combinada com transmissão síncrona por polling. A arquitetura baseada na ISR (`serial_cb`) e na fila (`k_msgq`) demonstrou-se robusta e previsível, permitindo implementar testes completos (TDD) e validar cenários como linhas longas, alta taxa de transmissão e resets inesperados. A ausência de modificações no código foi proposital: o objetivo era analisar e validar o comportamento do sample oficial, que funcionou exatamente conforme especificado.
+
+Na **Etapa 2 (Bot Cíclico RX/TX)**, enfrentamos uma limitação importante: o sample `async_api` do Zephyr **não é compatível com a FRDM-KL25Z**, pois o driver UART da placa não implementa as funcionalidades necessárias da API assíncrona. A partir disso, aprendemos a adaptar o projeto, mantendo o conceito central (alternância entre janelas de RX e TX) usando apenas recursos plenamente suportados — interrupção para recepção e polling para transmissão. Essa adaptação manteve o objetivo pedagógico da atividade: observar o comportamento temporal de acúmulo e processamento de mensagens, além de validar fila, descarte e sincronização entre thread e ISR.
+
+De forma geral, a atividade reforçou três aprendizados principais:
+
+1. **A importância de compreender as capacidades reais do driver UART da placa**, evitando assumir que todo sample do Zephyr é universalmente aplicável.
+2. **A utilidade da abordagem TDD**, que facilitou identificar comportamentos esperados e interpretar corretamente evidências de funcionamento.
+3. **O valor de abstrair conceitos (como o ciclo RX/TX)** e implementá-los utilizando as APIs que o hardware realmente oferece, respeitando limitações sem perder o objetivo do experimento.
+
+Ao final, ambas as etapas foram concluídas com sucesso, e a dupla obteve uma visão prática e aprofundada do funcionamento da UART no Zephyr, incluindo interrupções, filas, polling, limitações de driver e técnicas de teste sistemático.
+
+## Resumo
+
+### **O que deu certo**
+
+* A integração da ISR de recepção (`serial_cb`) com a fila (`k_msgq`) funcionou de maneira confiável em ambas as etapas, permitindo capturar mensagens mesmo sob alta taxa de envio.
+* O TDD desenvolvido ao longo da atividade garantiu que todos os cenários fossem validados sistematicamente, fornecendo evidências claras de funcionamento.
+* O Echo Bot da Etapa 1 operou sem necessidade de modificações, demonstrando a robustez do sample oficial e facilitando a compreensão da comunicação UART por interrupção.
+* Na Etapa 2, a adaptação do ciclo RX/TX usando APIs compatíveis com a KL25Z funcionou conforme esperado, incluindo purga da fila, descarte silencioso e eco ordenado.
+* O comportamento temporal dos modos RX e TX pôde ser observado e documentado de maneira clara com logs e scripts de teste.
+
+### **O que foi mais desafiador**
+
+* A maior dificuldade foi descobrir que o **driver UART da FRDM-KL25Z não suporta a Async API do Zephyr**, o que impossibilitou a execução do sample original e exigiu reconstruir o comportamento solicitado usando apenas APIs síncronas e de interrupção.
+* Foi desafiador configurar corretamente o ambiente de testes no VS Code, especialmente devido ao **reset automático da placa ao abrir a serial**, que interferia nos testes e scripts.
+* Garantir que a ISR não interferisse nos períodos de TX e que mensagens não fossem consumidas durante o ciclo errado demandou compreensão profunda do funcionamento de interrupções e filas.
+* Os testes de overflow (CT4) exigiram ajustes cuidadosos nos scripts Python e no controle da porta serial, devido a conflitos de acesso (erro de “Access Denied” da porta).
+* Gerar diagramas sequenciais D2 válidos também exigiu atenção às regras de sintaxe estritas do formato.
