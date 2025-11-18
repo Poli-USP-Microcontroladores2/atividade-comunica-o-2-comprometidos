@@ -695,26 +695,67 @@ west build -p always -b frdm_kl25z samples/drivers/uart/async_api
 
 ## 4.4 Evidências de Funcionamento
 
-Salvar em `docs/evidence/async_api/`.
+Todas as evidências disponíveis em [docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/).
 
-Exemplo:
+---
 
-```
-Loop 0:
-Sending 3 packets (packet size: 5)
-Packet: 0
-Packet: 1
-Packet: 2
-```
+### Evidências CT1 – Caminho Feliz (Happy Path)
 
-Ou:
+![Imagem log CT1 – Caminho Feliz (Happy Path)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct1_happy_path/log_ct1.PNG)
 
-```
-RX is now enabled
-UART callback: RX_RDY
-Data (HEX): 48 65 6C 6C 6F
-Data (ASCII): Hello
-```
+[Link para log CT1 – Caminho Feliz (Happy Path)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct1_happy_path/log_ct1.txt)
+
+---
+
+### Evidências CT2 – Descarte de Mensagens (Modo TX)
+
+![Imagem log CT2 – Descarte de Mensagens (Modo TX)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct2_modo_tx/log_ct2.PNG)
+
+[Link para log CT2 – Descarte de Mensagens (Modo TX)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct2_modo_tx/log_ct2.txt)
+
+---
+
+### Evidências CT3 – Ciclo Vazio (Sem Input)
+
+![Imagem CT3 – Ciclo Vazio (Sem Input)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct3_no_input/log_ct3.PNG)
+
+[Link para log CT3 – Ciclo Vazio (Sem Input)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct3_no_input/log_ct3.txt)
+
+---
+
+### Evidências CT4 – Estouro de Fila (Queue Overflow)
+
+![Imagem CT4 – Estouro de Fila (Queue Overflow)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct4_queue_overflow/log_ct4.PNG)
+
+[Link para log CT4 – Estouro de Fila (Queue Overflow)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct4_queue_overflow/log_ct4.txt)
+
+---
+
+### Evidências CT5 – Estouro de Mensagem (Truncation)
+
+![Imagem CT5 – Estouro de Mensagem (Truncation)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct5_truncation/log_ct5.PNG)
+
+[Link para log CT5 – Estouro de Mensagem (Truncation)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct5_truncation/log_ct5.txt)
+
+---
+
+### Evidências CT6 – Linha Vazia (Apenas Enter)
+
+![Imagem CT6 – Linha Vazia (Apenas Enter)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct6_linha_vazia/log_ct6.PNG)
+
+[Link para log CT6 – Linha Vazia (Apenas Enter)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct6_linha_vazia/log_ct6.txt)
+
+---
+
+### Evidências CT7 – Teste de Transição (RX durante TX)
+
+![Imagem CT7 – Teste de Transição (RX durante TX)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct7_teste_de_transicao/log_ct7.PNG)
+
+
+[Link para log CT7 – Teste de Transição (RX durante TX)](docs/evidence/etapa2_asyncapi_transmissão_recepção_assíncrona/ct7_teste_de_transicao/log_ct7.txt)
+
+---
+
 
 ## 4.5 Diagramas de Sequência D2
 
